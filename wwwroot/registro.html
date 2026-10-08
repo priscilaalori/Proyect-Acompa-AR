@@ -1,0 +1,201 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>AcompañAR - Registro</title>
+
+    <link rel="stylesheet" href="css/Style.css">
+</head>
+
+<body>
+
+    <main class="registro-container">
+
+        <section class="registro-card">
+
+            <div class="logo">
+                <div class="logo-icon">💜</div>
+
+                <h1>AcompañAR</h1>
+
+                <p>Recordar. Acompañar. Proteger.</p>
+            </div>
+
+
+            <div class="registro-header">
+
+                <h2>Crear una cuenta</h2>
+
+                <p>Completá tus datos para comenzar</p>
+
+            </div>
+
+
+            <form id="registroForm">
+
+                <div class="form-row">
+
+                    <div class="form-group">
+
+                        <label for="nombre">Nombre</label>
+
+                        <input type="text"
+                               id="nombre"
+                               name="nombre"
+                               maxlength="100"
+                               required>
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="apellido">Apellido</label>
+
+                        <input type="text"
+                               id="apellido"
+                               name="apellido"
+                               maxlength="100"
+                               required>
+
+                    </div>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="dni">DNI</label>
+
+                    <input type="text"
+                           id="dni"
+                           name="dni"
+                           maxlength="9"
+                           required>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="fechaNacimiento">
+                        Fecha de nacimiento
+                    </label>
+
+                    <input type="date"
+                           id="fechaNacimiento"
+                           name="fechaNacimiento"
+                           required>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="email">Email</label>
+
+                    <input type="email"
+                           id="email"
+                           name="email"
+                           maxlength="150"
+                           placeholder="ejemplo@email.com"
+                           required>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="password">Contraseña</label>
+
+                    <input type="password"
+                           id="password"
+                           name="password"
+                           minlenght="8"
+                           maxlength="16"
+                           placeholder="Ingresá tu contraseña"
+                           required>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="telefono">Teléfono</label>
+
+                    <input type="tel"
+                           id="telefono"
+                           name="telefono"
+                           maxlength="12"
+                           placeholder="Ej: 11 1234 5678"
+                           required>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label>
+                        ¿Cómo vas a utilizar AcompañAR?
+                    </label>
+
+                    <div class="tipo-usuario">
+
+                        <label class="tipo-option">
+
+                            <input type="radio"
+                                   name="tipoUsuario"
+                                   value="MAYOR"
+                                   required>
+
+                            <span>👵 Persona mayor</span>
+
+                        </label>
+
+
+                        <label class="tipo-option">
+
+                            <input type="radio"
+                                   name="tipoUsuario"
+                                   value="ACOMPANANTE">
+
+                            <span>🤝 Acompañante</span>
+
+                        </label>
+
+                    </div>
+
+                </div>
+
+
+                <button type="submit"
+                        class="btn-registrar">
+
+                    Crear mi cuenta
+
+                </button>
+
+            </form>
+
+
+            <p class="login-link">
+
+                ¿Ya tenés una cuenta?
+
+                <a href="index.html">
+                    Iniciar sesión
+                </a>
+
+            </p>
+
+        </section>
+
+    </main>
+
+
+    <script src="js/registro.js"></script>
+
+</body>
+</html>

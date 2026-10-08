@@ -1,0 +1,6 @@
+@AcompañAR.Proyecto_HostAddress = http://localhost:5232
+
+GET {{AcompañAR.Proyecto_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
