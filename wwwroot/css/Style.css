@@ -225,3 +225,118 @@ body {
 .tipo-error {
     border-color: #d9534f;
 }
+
+.inicio-acciones {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.inicio-boton {
+    display: block;
+    text-align: center;
+    text-decoration: none;
+}
+
+.inicio-boton-secundario {
+    background-color: #eee5ff;
+    color: #7654b8;
+}
+
+    .inicio-boton-secundario:hover {
+        background-color: #ddd0f3;
+    }
+
+.inicio-boton:focus-visible {
+    outline: 3px solid #9675d0;
+    outline-offset: 4px;
+}
+
+
+.login-card {
+    max-width: 520px;
+}
+
+.login-header {
+    text-align: center;
+}
+
+    .login-header p {
+        font-size: 17px;
+        line-height: 1.6;
+        color: #514966;
+    }
+
+
+.login-detalles {
+    display: flex;
+    justify-content: center;
+    gap: 18px;
+    margin-bottom: 24px;
+}
+
+    .login-detalles span {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 58px;
+        height: 58px;
+        border-radius: 50%;
+        background-color: #eee5ff;
+        font-size: 28px;
+    }
+
+
+.login-card .form-group label {
+    font-size: 17px;
+}
+
+.login-card .form-group input {
+    min-height: 50px;
+    font-size: 18px;
+}
+
+.login-card .btn-registrar {
+    min-height: 52px;
+    font-size: 18px;
+}
+
+.login-card .login-link {
+    font-size: 16px;
+    line-height: 1.6;
+    color: #514966;
+}
+
+    .login-card .login-link a {
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
+
+
+
+.login-acompanamiento {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 26px;
+    padding: 16px;
+    border-radius: 12px;
+    background-color: #f5f0ff;
+}
+
+    .login-acompanamiento span {
+        font-size: 28px;
+    }
+
+    .login-acompanamiento p {
+        font-size: 16px;
+        line-height: 1.6;
+        color: #514966;
+    }
+
+
+.login-card a:focus-visible,
+.login-card button:focus-visible {
+    outline: 3px solid #7654b8;
+    outline-offset: 4px;
+}
