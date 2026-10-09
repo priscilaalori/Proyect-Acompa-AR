@@ -209,6 +209,258 @@ if (app.Environment.IsDevelopment())
     .WithOpenApi();
 }
 
+if (app.Environment.IsDevelopment())
+{
+    app.MapGet("/api/mayores/{idMayor:int}/contactos", async (
+        int idMayor,
+        CancellationToken cancellationToken) =>
+    {
+        if (idMayor <= 0)
+        {
+            return Results.BadRequest(new
+            {
+                mensaje = "El ID de la persona mayor no es válido."
+            });
+        }
+
+        var cadenaConexion =
+            app.Configuration.GetConnectionString("MySql");
+
+        if (string.IsNullOrWhiteSpace(cadenaConexion))
+        {
+            return Results.Problem(
+                title: "Falta configurar la conexión con MySQL.",
+                statusCode: 500);
+        }
+
+        try
+        {
+            using var conexion =
+                new MySqlConnection(cadenaConexion);
+
+            await conexion.OpenAsync(cancellationToken);
+
+            using var comandoMayor = new MySqlCommand(
+                """
+                SELECT COUNT(*)
+                FROM usuario
+                WHERE id_usuario = @idMayor
+                  AND tipo_usuario = 'MAYOR'
+                  AND estado = TRUE;
+                """,
+                conexion);
+
+            comandoMayor.Parameters
+                .Add("@idMayor", MySqlDbType.Int32)
+                .Value = idMayor;
+
+            var resultadoMayor =
+                await comandoMayor.ExecuteScalarAsync(cancellationToken);
+
+            if (Convert.ToInt32(resultadoMayor) == 0)
+            {
+                return Results.NotFound(new
+                {
+                    mensaje = "La persona mayor no existe."
+                });
+            }
+
+            using var comando = new MySqlCommand(
+                """
+                SELECT id_contacto, nombre, apellido,
+                       telefono, tipo_vinculo
+                FROM contacto_confianza
+                WHERE id_mayor = @idMayor
+                  AND estado = TRUE;
+                """,
+                conexion);
+
+            comando.Parameters
+                .Add("@idMayor", MySqlDbType.Int32)
+                .Value = idMayor;
+
+            using var lector =
+                await comando.ExecuteReaderAsync(cancellationToken);
+
+            var contactos = new List<object>();
+
+            while (await lector.ReadAsync(cancellationToken))
+            {
+                contactos.Add(new
+                {
+                    idContacto = lector.GetInt32(0),
+                    nombre = lector.GetString(1),
+                    apellido = lector.IsDBNull(2)
+                        ? null : lector.GetString(2),
+                    telefono = lector.GetString(3),
+                    tipoVinculo = lector.GetString(4)
+                });
+            }
+
+            return Results.Ok(contactos);
+        }
+        catch (MySqlException ex)
+        {
+            app.Logger.LogError(
+                ex,
+                "Falló la consulta de contactos de confianza.");
+
+            return Results.Problem(
+                title: "No se pudieron consultar los contactos.",
+                statusCode: 503);
+        }
+    })
+    .WithName("ConsultarContactos")
+    .WithTags("Contactos")
+    .WithOpenApi();
+}
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapPost("/api/mayores/{idMayor:int}/contactos", async (
+        int idMayor,
+        CrearContactoRequest solicitud,
+        CancellationToken cancellationToken) =>
+    {
+        var nombre = solicitud.Nombre?.Trim();
+        var apellido = solicitud.Apellido?.Trim();
+        var telefono = solicitud.Telefono?.Trim();
+        var tipoVinculo = solicitud.TipoVinculo?.Trim();
+
+        if (idMayor <= 0 ||
+            string.IsNullOrWhiteSpace(nombre) ||
+            nombre.Length > 100 ||
+            (apellido?.Length ?? 0) > 100 ||
+            string.IsNullOrWhiteSpace(telefono) ||
+            telefono.Length > 30 ||
+            string.IsNullOrWhiteSpace(tipoVinculo) ||
+            tipoVinculo.Length > 50)
+        {
+            return Results.BadRequest(new
+            {
+                mensaje = "Los datos del contacto no son válidos."
+            });
+        }
+
+        var cadenaConexion =
+            app.Configuration.GetConnectionString("MySql");
+
+        if (string.IsNullOrWhiteSpace(cadenaConexion))
+        {
+            return Results.Problem(
+                title: "Falta configurar la conexión con MySQL.",
+                statusCode: 500);
+        }
+
+        try
+        {
+            using var conexion =
+                new MySqlConnection(cadenaConexion);
+
+            await conexion.OpenAsync(cancellationToken);
+
+            using var comandoMayor = new MySqlCommand(
+                """
+                SELECT COUNT(*)
+                FROM usuario
+                WHERE id_usuario = @idMayor
+                  AND tipo_usuario = 'MAYOR'
+                  AND estado = TRUE;
+                """,
+                conexion);
+
+            comandoMayor.Parameters
+                .Add("@idMayor", MySqlDbType.Int32)
+                .Value = idMayor;
+
+            var resultadoMayor =
+                await comandoMayor.ExecuteScalarAsync(cancellationToken);
+
+            if (Convert.ToInt32(resultadoMayor) == 0)
+            {
+                return Results.NotFound(new
+                {
+                    mensaje = "La persona mayor no existe."
+                });
+            }
+
+            using var comandoDuplicado = new MySqlCommand(
+                """
+                SELECT COUNT(*)
+                FROM contacto_confianza
+                WHERE id_mayor = @idMayor
+                  AND telefono = @telefono;
+                """,
+                conexion);
+
+            comandoDuplicado.Parameters
+                .Add("@idMayor", MySqlDbType.Int32)
+                .Value = idMayor;
+
+            comandoDuplicado.Parameters
+                .Add("@telefono", MySqlDbType.VarChar)
+                .Value = telefono;
+
+            var resultadoDuplicado =
+                await comandoDuplicado.ExecuteScalarAsync(cancellationToken);
+
+            if (Convert.ToInt32(resultadoDuplicado) > 0)
+            {
+                return Results.Conflict(new
+                {
+                    mensaje = "Este contacto ya está registrado."
+                });
+            }
+
+            using var comando = new MySqlCommand(
+                """
+                INSERT INTO contacto_confianza
+                (id_mayor, nombre, apellido, telefono,
+                 tipo_vinculo, estado)
+                VALUES
+                (@idMayor, @nombre, @apellido, @telefono,
+                 @tipoVinculo, TRUE);
+                """,
+                conexion);
+
+            comando.Parameters.Add("@idMayor", MySqlDbType.Int32)
+                .Value = idMayor;
+
+            comando.Parameters.Add("@nombre", MySqlDbType.VarChar)
+                .Value = nombre;
+
+            comando.Parameters.Add("@apellido", MySqlDbType.VarChar)
+                .Value = (object?)apellido ?? DBNull.Value;
+
+            comando.Parameters.Add("@telefono", MySqlDbType.VarChar)
+                .Value = telefono;
+
+            comando.Parameters.Add("@tipoVinculo", MySqlDbType.VarChar)
+                .Value = tipoVinculo;
+
+            await comando.ExecuteNonQueryAsync(cancellationToken);
+
+            return Results.Json(new
+            {
+                mensaje = "Contacto registrado correctamente.",
+                idContacto = comando.LastInsertedId
+            }, statusCode: 201);
+        }
+        catch (MySqlException ex)
+        {
+            app.Logger.LogError(
+                ex,
+                "Falló el registro del contacto de confianza.");
+
+            return Results.Problem(
+                title: "No se pudo registrar el contacto.",
+                statusCode: 503);
+        }
+    })
+    .WithName("RegistrarContacto")
+    .WithTags("Contactos")
+    .WithOpenApi();
+}
 
 app.Run();
 
