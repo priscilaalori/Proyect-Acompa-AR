@@ -3,6 +3,9 @@ using MySql.Data.MySqlClient;
 using System.Net.Mail;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,6 +13,24 @@ var builder = WebApplication.CreateBuilder(args);
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+        options.Events.OnRedirectToLogin = context =>
+        {
+            context.Response.StatusCode = 401;
+            return Task.CompletedTask;
+        };
+        options.Events.OnRedirectToAccessDenied = context =>
+        {
+            context.Response.StatusCode = 403;
+            return Task.CompletedTask;
+        };
+    });
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
@@ -23,6 +44,8 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseDefaultFiles();
 app.UseStaticFiles();
+app.UseAuthentication();
+app.UseAuthorization();
 
 var summaries = new[]
 {
@@ -98,6 +121,7 @@ if (app.Environment.IsDevelopment())
 {
     app.MapPost("/api/auth/login", async (
         LoginRequest solicitud,
+        HttpContext contexto,
         CancellationToken cancellationToken) =>
     {
 
@@ -179,7 +203,15 @@ if (app.Environment.IsDevelopment())
                 }, statusCode: 401);
             }
 
-            
+            await contexto.SignInAsync(
+                CookieAuthenticationDefaults.AuthenticationScheme,
+                new ClaimsPrincipal(new ClaimsIdentity(new[]
+                {
+                    new Claim(ClaimTypes.NameIdentifier, lector.GetInt32(0).ToString()),
+                    new Claim(ClaimTypes.Name, lector.GetString(1)),
+                    new Claim(ClaimTypes.Role, lector.GetString(4))
+                }, CookieAuthenticationDefaults.AuthenticationScheme)));
+
             return Results.Ok(new
             {
                 mensaje = "Credenciales correctas.",
@@ -460,6 +492,109 @@ if (app.Environment.IsDevelopment())
     .WithName("RegistrarContacto")
     .WithTags("Contactos")
     .WithOpenApi();
+}
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapPost("/api/auth/logout", async (HttpContext contexto) =>
+    {
+        await contexto.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        return Results.NoContent();
+    });
+
+    app.MapGet("/api/acompanante/panel", async (
+        HttpContext contexto, CancellationToken cancellationToken) =>
+    {
+        contexto.Response.Headers.CacheControl = "no-store";
+        if (!contexto.User.IsInRole("ACOMPANANTE"))
+            return Results.Json(new { mensaje = "Esta página es para personas acompañantes." }, statusCode: 403);
+
+        var cadena = app.Configuration.GetConnectionString("MySql");
+        if (string.IsNullOrWhiteSpace(cadena))
+            return Results.Problem(title: "Falta configurar la conexión con MySQL.", statusCode: 500);
+
+        try
+        {
+            using var conexion = new MySqlConnection(cadena);
+            await conexion.OpenAsync(cancellationToken);
+            using var comando = new MySqlCommand(
+                """
+                SELECT u.id_usuario, u.nombre, u.apellido
+                FROM vinculacion v
+                JOIN usuario u ON u.id_usuario = v.id_mayor
+                JOIN usuario a ON a.id_usuario = v.id_acompanante
+                WHERE v.id_acompanante = @id AND v.estado = 'ACEPTADA'
+                  AND u.estado = TRUE AND u.tipo_usuario = 'MAYOR'
+                  AND a.estado = TRUE AND a.tipo_usuario = 'ACOMPANANTE'
+                ORDER BY v.fecha_vinculacion, v.id_vinculacion
+                LIMIT 1;
+                """, conexion);
+            comando.Parameters.Add("@id", MySqlDbType.Int32).Value =
+                int.Parse(contexto.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+            int idMayor;
+            object mayor;
+            using (var lector = await comando.ExecuteReaderAsync(cancellationToken))
+            {
+                if (!await lector.ReadAsync(cancellationToken))
+                    return Results.Ok(new { acompanante = contexto.User.Identity!.Name, mayor = (object?)null,
+                        medicamentos = Array.Empty<object>(), recordatorios = Array.Empty<object>(), turnos = Array.Empty<object>() });
+                idMayor = lector.GetInt32(0);
+                mayor = new { idUsuario = idMayor, nombre = lector.GetString(1), apellido = lector.GetString(2) };
+            }
+
+            // Las tres consultas se limitan al adulto obtenido de la vinculación del usuario autenticado.
+            comando.Parameters.Clear();
+            comando.Parameters.Add("@idMayor", MySqlDbType.Int32).Value = idMayor;
+            comando.CommandText = """
+                SELECT nombre, dosis, frecuencia, TIME_FORMAT(horario, '%H:%i'),
+                       DATE_FORMAT(fecha_inicio, '%Y-%m-%d'), DATE_FORMAT(fecha_fin, '%Y-%m-%d')
+                FROM medicamento WHERE id_mayor = @idMayor AND estado = TRUE
+                ORDER BY horario, id_medicamento;
+                """;
+            var medicamentos = new List<object>();
+            using (var lector = await comando.ExecuteReaderAsync(cancellationToken))
+                while (await lector.ReadAsync(cancellationToken))
+                    medicamentos.Add(new { nombre = lector.GetString(0), dosis = lector.GetString(1),
+                        frecuencia = lector.GetString(2), horario = lector.GetString(3),
+                        fechaInicio = lector.GetString(4), fechaFin = lector.IsDBNull(5) ? null : lector.GetString(5) });
+
+            comando.CommandText = """
+                SELECT t.especialidad, t.nombre_medico, DATE_FORMAT(t.fecha, '%Y-%m-%d'),
+                       TIME_FORMAT(t.hora, '%H:%i'), t.direccion, t.motivo, t.estado
+                FROM turno_medico t WHERE t.id_mayor = @idMayor ORDER BY t.fecha, t.hora, t.id_turno;
+                """;
+            var turnos = new List<object>();
+            using (var lector = await comando.ExecuteReaderAsync(cancellationToken))
+                while (await lector.ReadAsync(cancellationToken))
+                    turnos.Add(new { especialidad = lector.GetString(0), medico = lector.GetString(1),
+                        fecha = lector.GetString(2), hora = lector.GetString(3), direccion = lector.GetString(4),
+                        motivo = lector.IsDBNull(5) ? null : lector.GetString(5), estado = lector.GetString(6) });
+
+            comando.CommandText = """
+                SELECT COALESCE(m.nombre, t.especialidad),
+                       CASE WHEN r.id_medicamento IS NOT NULL THEN 'Medicamento' ELSE 'Turno médico' END,
+                       DATE_FORMAT(r.fecha_hora, '%Y-%m-%d'), TIME_FORMAT(r.fecha_hora, '%H:%i'), r.estado
+                FROM recordatorio r
+                LEFT JOIN medicamento m ON m.id_medicamento = r.id_medicamento
+                LEFT JOIN turno_medico t ON t.id_turno = r.id_turno
+                WHERE m.id_mayor = @idMayor OR t.id_mayor = @idMayor
+                ORDER BY r.fecha_hora, r.id_recordatorio;
+                """;
+            var recordatorios = new List<object>();
+            using (var lector = await comando.ExecuteReaderAsync(cancellationToken))
+                while (await lector.ReadAsync(cancellationToken))
+                    recordatorios.Add(new { nombre = lector.GetString(0), tipo = lector.GetString(1),
+                        fecha = lector.GetString(2), hora = lector.GetString(3), estado = lector.GetString(4) });
+
+            return Results.Ok(new { acompanante = contexto.User.Identity!.Name, mayor, medicamentos, recordatorios, turnos });
+        }
+        catch (MySqlException ex)
+        {
+            app.Logger.LogError(ex, "Falló la consulta del panel del acompañante.");
+            return Results.Problem(title: "No pudimos cargar la información. Intentá más tarde.", statusCode: 503);
+        }
+    }).RequireAuthorization().WithTags("Acompañante");
 }
 
 app.Run();

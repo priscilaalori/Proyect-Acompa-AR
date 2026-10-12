@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AcompañAR - Mi acompañamiento</title>
+    <link rel="stylesheet" href="css/Style.css">
+</head>
+<body>
+    <main class="panel-container">
+        <header class="panel-header">
+            <div class="logo"><h1>💜 AcompañAR</h1><p>Recordar. Acompañar. Proteger.</p></div>
+            <button id="cerrarSesion" class="panel-boton">Cerrar sesión</button>
+        </header>
+        <section class="panel-bienvenida">
+            <h2 id="saludo">Mi acompañamiento</h2>
+            <p id="personaMayor">Consultando tu adulto mayor vinculado…</p>
+            <p id="panelMensaje" role="status" aria-live="polite">Cargando información…</p>
+            <button id="reintentar" class="panel-boton" hidden>Reintentar</button>
+        </section>
+        <div id="configuracion" class="panel-grid" hidden>
+            <section class="panel-seccion" aria-labelledby="tituloMedicamentos">
+                <h2 id="tituloMedicamentos">💊 Medicamentos</h2>
+                <ul id="medicamentos" class="panel-lista"></ul>
+            </section>
+            <section class="panel-seccion" aria-labelledby="tituloRecordatorios">
+                <h2 id="tituloRecordatorios">🔔 Recordatorios</h2>
+                <ul id="recordatorios" class="panel-lista"></ul>
+            </section>
+            <section class="panel-seccion" aria-labelledby="tituloTurnos">
+                <h2 id="tituloTurnos">📅 Turnos médicos</h2>
+                <ul id="turnos" class="panel-lista"></ul>
+            </section>
+        </div>
+    </main>
+    <script src="js/acompanante.js"></script>
+</body>
+</html>
