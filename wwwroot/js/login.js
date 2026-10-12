@@ -30,8 +30,11 @@ formulario.addEventListener("submit", async event => {
 
         document.getElementById("password").value = "";
 
-        mensaje.textContent =
-            `¡Hola, ${datos.usuario.nombre}! Tus datos son correctos.`;
+        if (datos.usuario.tipoUsuario === "ACOMPANANTE") {
+            window.location.assign("acompanante.html");
+            return;
+        }
+        mensaje.textContent = `¡Hola, ${datos.usuario.nombre}! Tus datos son correctos. Esta página de seguimiento es para acompañantes.`;
     } catch {
         mensaje.textContent = "No pudimos conectar con el servidor.";
     } finally {
