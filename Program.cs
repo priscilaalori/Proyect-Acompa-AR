@@ -1,4 +1,5 @@
 using AcompañAR.Proyecto.DTO;
+using AcompañAR.Proyecto.Repositories;
 using MySql.Data.MySqlClient;
 using System.Net.Mail;
 using System.Security.Cryptography;
@@ -11,6 +12,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+
+builder.Services.AddScoped<ContactoRepository>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -245,6 +248,7 @@ if (app.Environment.IsDevelopment())
 {
     app.MapGet("/api/mayores/{idMayor:int}/contactos", async (
         int idMayor,
+        ContactoRepository repositorio,
         CancellationToken cancellationToken) =>
     {
         if (idMayor <= 0)
@@ -255,10 +259,7 @@ if (app.Environment.IsDevelopment())
             });
         }
 
-        var cadenaConexion =
-            app.Configuration.GetConnectionString("MySql");
-
-        if (string.IsNullOrWhiteSpace(cadenaConexion))
+        if (!repositorio.ConexionConfigurada)
         {
             return Results.Problem(
                 title: "Falta configurar la conexión con MySQL.",
@@ -267,29 +268,10 @@ if (app.Environment.IsDevelopment())
 
         try
         {
-            using var conexion =
-                new MySqlConnection(cadenaConexion);
+            var existeMayor = await repositorio
+                .ExisteMayorAsync(idMayor, cancellationToken);
 
-            await conexion.OpenAsync(cancellationToken);
-
-            using var comandoMayor = new MySqlCommand(
-                """
-                SELECT COUNT(*)
-                FROM usuario
-                WHERE id_usuario = @idMayor
-                  AND tipo_usuario = 'MAYOR'
-                  AND estado = TRUE;
-                """,
-                conexion);
-
-            comandoMayor.Parameters
-                .Add("@idMayor", MySqlDbType.Int32)
-                .Value = idMayor;
-
-            var resultadoMayor =
-                await comandoMayor.ExecuteScalarAsync(cancellationToken);
-
-            if (Convert.ToInt32(resultadoMayor) == 0)
+            if (!existeMayor)
             {
                 return Results.NotFound(new
                 {
@@ -297,37 +279,8 @@ if (app.Environment.IsDevelopment())
                 });
             }
 
-            using var comando = new MySqlCommand(
-                """
-                SELECT id_contacto, nombre, apellido,
-                       telefono, tipo_vinculo
-                FROM contacto_confianza
-                WHERE id_mayor = @idMayor
-                  AND estado = TRUE;
-                """,
-                conexion);
-
-            comando.Parameters
-                .Add("@idMayor", MySqlDbType.Int32)
-                .Value = idMayor;
-
-            using var lector =
-                await comando.ExecuteReaderAsync(cancellationToken);
-
-            var contactos = new List<object>();
-
-            while (await lector.ReadAsync(cancellationToken))
-            {
-                contactos.Add(new
-                {
-                    idContacto = lector.GetInt32(0),
-                    nombre = lector.GetString(1),
-                    apellido = lector.IsDBNull(2)
-                        ? null : lector.GetString(2),
-                    telefono = lector.GetString(3),
-                    tipoVinculo = lector.GetString(4)
-                });
-            }
+            var contactos = await repositorio
+                .ObtenerContactosAsync(idMayor, cancellationToken);
 
             return Results.Ok(contactos);
         }
@@ -352,6 +305,7 @@ if (app.Environment.IsDevelopment())
     app.MapPost("/api/mayores/{idMayor:int}/contactos", async (
         int idMayor,
         CrearContactoRequest solicitud,
+        ContactoRepository repositorio,
         CancellationToken cancellationToken) =>
     {
         var nombre = solicitud.Nombre?.Trim();
@@ -374,10 +328,7 @@ if (app.Environment.IsDevelopment())
             });
         }
 
-        var cadenaConexion =
-            app.Configuration.GetConnectionString("MySql");
-
-        if (string.IsNullOrWhiteSpace(cadenaConexion))
+        if (!repositorio.ConexionConfigurada)
         {
             return Results.Problem(
                 title: "Falta configurar la conexión con MySQL.",
@@ -386,29 +337,10 @@ if (app.Environment.IsDevelopment())
 
         try
         {
-            using var conexion =
-                new MySqlConnection(cadenaConexion);
+            var existeMayor = await repositorio.ExisteMayorAsync(
+                idMayor, cancellationToken);
 
-            await conexion.OpenAsync(cancellationToken);
-
-            using var comandoMayor = new MySqlCommand(
-                """
-                SELECT COUNT(*)
-                FROM usuario
-                WHERE id_usuario = @idMayor
-                  AND tipo_usuario = 'MAYOR'
-                  AND estado = TRUE;
-                """,
-                conexion);
-
-            comandoMayor.Parameters
-                .Add("@idMayor", MySqlDbType.Int32)
-                .Value = idMayor;
-
-            var resultadoMayor =
-                await comandoMayor.ExecuteScalarAsync(cancellationToken);
-
-            if (Convert.ToInt32(resultadoMayor) == 0)
+            if (!existeMayor)
             {
                 return Results.NotFound(new
                 {
@@ -416,27 +348,10 @@ if (app.Environment.IsDevelopment())
                 });
             }
 
-            using var comandoDuplicado = new MySqlCommand(
-                """
-                SELECT COUNT(*)
-                FROM contacto_confianza
-                WHERE id_mayor = @idMayor
-                  AND telefono = @telefono;
-                """,
-                conexion);
+            var existeTelefono = await repositorio.ExisteTelefonoAsync(
+                idMayor, telefono, cancellationToken);
 
-            comandoDuplicado.Parameters
-                .Add("@idMayor", MySqlDbType.Int32)
-                .Value = idMayor;
-
-            comandoDuplicado.Parameters
-                .Add("@telefono", MySqlDbType.VarChar)
-                .Value = telefono;
-
-            var resultadoDuplicado =
-                await comandoDuplicado.ExecuteScalarAsync(cancellationToken);
-
-            if (Convert.ToInt32(resultadoDuplicado) > 0)
+            if (existeTelefono)
             {
                 return Results.Conflict(new
                 {
@@ -444,38 +359,18 @@ if (app.Environment.IsDevelopment())
                 });
             }
 
-            using var comando = new MySqlCommand(
-                """
-                INSERT INTO contacto_confianza
-                (id_mayor, nombre, apellido, telefono,
-                 tipo_vinculo, estado)
-                VALUES
-                (@idMayor, @nombre, @apellido, @telefono,
-                 @tipoVinculo, TRUE);
-                """,
-                conexion);
-
-            comando.Parameters.Add("@idMayor", MySqlDbType.Int32)
-                .Value = idMayor;
-
-            comando.Parameters.Add("@nombre", MySqlDbType.VarChar)
-                .Value = nombre;
-
-            comando.Parameters.Add("@apellido", MySqlDbType.VarChar)
-                .Value = (object?)apellido ?? DBNull.Value;
-
-            comando.Parameters.Add("@telefono", MySqlDbType.VarChar)
-                .Value = telefono;
-
-            comando.Parameters.Add("@tipoVinculo", MySqlDbType.VarChar)
-                .Value = tipoVinculo;
-
-            await comando.ExecuteNonQueryAsync(cancellationToken);
+            var idContacto = await repositorio.RegistrarContactoAsync(
+                idMayor,
+                nombre,
+                apellido,
+                telefono,
+                tipoVinculo,
+                cancellationToken);
 
             return Results.Json(new
             {
                 mensaje = "Contacto registrado correctamente.",
-                idContacto = comando.LastInsertedId
+                idContacto
             }, statusCode: 201);
         }
         catch (MySqlException ex)
