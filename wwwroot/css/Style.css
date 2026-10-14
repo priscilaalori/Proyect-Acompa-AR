@@ -178,22 +178,31 @@ body {
 
 /* BOTÓN */
 
-.btn-registrar {
+/* BOTONES */
+
+.btn-registrar,
+.btn-volver-login {
+    display: block;
     width: 100%;
     padding: 14px;
     border: none;
     border-radius: 12px;
     background-color: #7654b8;
     color: white;
+    font-family: inherit;
     font-size: 16px;
     font-weight: bold;
+    text-align: center;
+    text-decoration: none;
     cursor: pointer;
     margin-top: 5px;
     transition: 0.2s;
 }
 
-    .btn-registrar:hover {
+    .btn-registrar:hover,
+    .btn-volver-login:hover {
         background-color: #6544a5;
+        color: white;
     }
 
 
@@ -363,3 +372,51 @@ body {
     outline: 3px solid #7654b8;
     outline-offset: 4px;
 }
+/* MENSAJE DE REGISTRO EXITOSO */
+
+.mensaje-registro {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 30px 24px;
+    margin: 24px 0;
+    background: #f5efff;
+    border: 1px solid #dfd0ff;
+    border-radius: 20px;
+    box-shadow: 0 8px 24px rgba(91, 53, 181, 0.12);
+    text-align: center;
+    color: #3f3158;
+}
+
+    .mensaje-registro[hidden] {
+        display: none !important;
+    }
+
+    .mensaje-registro .mensaje-icono {
+        width: 64px;
+        height: 64px;
+        margin: 0 auto 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #e7d9ff;
+        border-radius: 50%;
+        font-size: 34px;
+    }
+
+    .mensaje-registro h3 {
+        color: #6842bd;
+        font-size: 23px;
+        margin: 0 0 12px;
+    }
+
+    .mensaje-registro p {
+        font-size: 15px;
+        line-height: 1.6;
+        margin: 8px 0;
+    }
+
+    .mensaje-registro .mensaje-detalle {
+        color: #76668d;
+        font-size: 14px;
+    }
+

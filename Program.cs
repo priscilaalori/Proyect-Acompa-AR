@@ -1,12 +1,13 @@
+using Acompañar.Proyecto.DTO;
 using AcompañAR.Proyecto.DTO;
 using AcompañAR.Proyecto.Repositories;
-using MySql.Data.MySqlClient;
-using System.Net.Mail;
-using System.Security.Cryptography;
-using System.Text;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using MySql.Data.MySqlClient;
+using System.Net.Mail;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,6 +15,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 
 builder.Services.AddScoped<ContactoRepository>();
+builder.Services.AddScoped<UsuarioRepository>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -240,6 +242,104 @@ if (app.Environment.IsDevelopment())
         }
     })
     .WithName("ValidarLogin")
+    .WithTags("Autenticación")
+    .WithOpenApi();
+}
+if (app.Environment.IsDevelopment())
+{
+    app.MapPost("/api/auth/registro", async (
+        RegistroRequest solicitud,
+        UsuarioRepository repositorio,
+        CancellationToken cancellationToken) =>
+    {
+        var nombre = solicitud.Nombre?.Trim();
+        var apellido = solicitud.Apellido?.Trim();
+        var documento = solicitud.DNI?.Trim();
+        var correoElectronico = solicitud.Email?.Trim();
+        var telefono = solicitud.Telefono?.Trim();
+        var tipoUsuario = solicitud.TipoUsuario?.Trim().ToUpperInvariant();
+        var contraseña = solicitud.Password;
+        var fechaNacimiento = solicitud.FechaNacimiento;
+
+        if (string.IsNullOrWhiteSpace(nombre)
+            || nombre.Length > 100
+            || string.IsNullOrWhiteSpace(apellido)
+            || apellido.Length > 100
+            || string.IsNullOrWhiteSpace(documento)
+            || documento.Length > 9
+            || string.IsNullOrWhiteSpace(correoElectronico)
+            || correoElectronico.Length > 150
+            || !MailAddress.TryCreate(correoElectronico, out var direccionCorreo)
+            || direccionCorreo.Address != correoElectronico
+            || string.IsNullOrEmpty(contraseña)
+            || contraseña.Length < 8
+            || contraseña.Length > 16
+            || string.IsNullOrWhiteSpace(telefono)
+            || telefono.Length > 12
+            || fechaNacimiento.Date >= DateTime.Today
+            || (tipoUsuario != "MAYOR" && tipoUsuario != "ACOMPANANTE"))
+        {
+            return Results.BadRequest(new
+            {
+                mensaje = "Los datos ingresados no son válidos."
+            });
+        }
+
+        if (!repositorio.ConexionConfigurada)
+        {
+            return Results.Problem(
+                title: "Falta configurar la conexión con MySQL.",
+                statusCode: 500);
+        }
+
+        try
+        {
+            var existeCorreoElectronico =
+                await repositorio.ExisteEmailAsync(
+                    correoElectronico, cancellationToken);
+
+            if (existeCorreoElectronico)
+            {
+                return Results.Conflict(new
+                {
+                    mensaje = "Ya existe una cuenta registrada con ese correo electrónico."
+                });
+            }
+
+            var existeDocumento =
+                await repositorio.ExisteDniAsync(
+                    documento, cancellationToken);
+
+            if (existeDocumento)
+            {
+                return Results.Conflict(new
+                {
+                    mensaje = "Ya existe una cuenta registrada con ese DNI."
+                });
+            }
+
+            var identificadorUsuario =
+                await repositorio.RegistrarUsuarioAsync(
+                    solicitud, cancellationToken);
+
+            return Results.Json(new
+            {
+                mensaje = "Usuario registrado correctamente.",
+                idUsuario = identificadorUsuario
+            }, statusCode: 201);
+        }
+        catch (MySqlException excepcion)
+        {
+            app.Logger.LogError(
+                excepcion,
+                "Ocurrió un error al registrar un usuario.");
+
+            return Results.Problem(
+                title: "No se pudo registrar el usuario.",
+                statusCode: 503);
+        }
+    })
+    .WithName("RegistrarUsuario")
     .WithTags("Autenticación")
     .WithOpenApi();
 }
