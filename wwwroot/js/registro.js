@@ -1,6 +1,6 @@
 ﻿const formulario = document.getElementById("registroForm");
 
-formulario.addEventListener("submit", function (event) {
+formulario.addEventListener("submit", async function (event) {
 
     event.preventDefault();
 
@@ -198,15 +198,85 @@ formulario.addEventListener("submit", function (event) {
 
 
     // -------------------------
-    // RESULTADO
+    // RESULTADO Y ENVÍO A LA API
     // -------------------------
 
     if (formularioValido) {
 
-        alert("¡Formulario válido!");
+        try {
 
-        console.log("Formulario listo para enviar a la API.");
+            
+            const datosRegistro = {
+                nombre: nombre,
+                apellido: apellido,
+                dni: dni,
+                fechaNacimiento: fechaNacimiento,
+                email: email,
+                password: password,
+                telefono: telefono,
+                tipoUsuario: tipoUsuario.value
+            };
 
+            
+            const respuesta = await fetch("/api/auth/registro", {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify(datosRegistro)
+            });
+
+            
+            const resultado = await respuesta.json();
+
+            
+            if (!respuesta.ok) {
+
+                const mensaje = resultado.mensaje
+                    || resultado.error
+                    || "No se pudo completar el registro.";
+
+              
+                if (respuesta.status === 409) {
+
+                    if (mensaje.toLowerCase().includes("correo")) {
+                        mostrarError("email", mensaje);
+
+                    } else if (mensaje.toLowerCase().includes("dni")) {
+                        mostrarError("dni", mensaje);
+
+                    } else {
+                        alert(mensaje);
+                    }
+
+                } else {
+                    alert(mensaje);
+                }
+
+                return;
+            }
+
+            
+            mostrarMensajeRegistro(
+                resultado.mensaje || "¡Tu cuenta se creó correctamente!"
+            );
+
+            formulario.reset();
+
+           
+
+        } catch (error) {
+
+            console.error("Error al comunicarse con la API:", error);
+
+            alert(
+                "No se pudo conectar con el servidor. " +
+                "Verificá que la aplicación esté ejecutándose e intentá nuevamente."
+            );
+
+        }
     }
 
 });
@@ -275,4 +345,45 @@ function limpiarErrores() {
         .forEach(contenedor => {
             contenedor.classList.remove("tipo-error");
         });
+}
+
+function mostrarMensajeRegistro(mensaje) {
+
+    const cartel = document.getElementById("mensajeRegistro");
+
+    cartel.replaceChildren();
+
+    const icono = document.createElement("div");
+    icono.className = "mensaje-icono";
+    icono.textContent = "💜";
+
+    const titulo = document.createElement("h3");
+    titulo.textContent = "¡Te damos la bienvenida!";
+
+    const texto = document.createElement("p");
+    texto.textContent = mensaje;
+
+    const detalle = document.createElement("p");
+    detalle.className = "mensaje-detalle";
+    detalle.textContent =
+        "Ya sos parte de AcompañAR.";
+
+    const boton = document.createElement("a");
+    boton.classList.add("btn-volver-login");
+    boton.href = "index.html";
+    boton.textContent = "Ir al inicio de sesión";
+
+    cartel.append(icono, titulo, texto, detalle, boton);
+
+    
+    formulario.hidden = true;
+    document.getElementById("registroHeader").hidden = true;
+
+  
+    cartel.hidden = false;
+
+    cartel.scrollIntoView({
+        behavior: "smooth",
+        block: "center"
+    });
 }

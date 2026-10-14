@@ -24,12 +24,20 @@
             </div>
 
 
-            <div class="registro-header">
+            <div class="registro-header" id="registroHeader">
 
                 <h2>Crear una cuenta</h2>
 
                 <p>Completá tus datos para comenzar</p>
 
+
+            </div>
+
+            <div id="mensajeRegistro"
+                 class="mensaje-registro"
+                 role="status"
+                 aria-live="polite"
+                 hidden>
             </div>
 
 
@@ -113,7 +121,7 @@
                     <input type="password"
                            id="password"
                            name="password"
-                           minlenght="8"
+                           minlength="8"
                            maxlength="16"
                            placeholder="Ingresá tu contraseña"
                            required>
