@@ -592,6 +592,204 @@ if (app.Environment.IsDevelopment())
     }).RequireAuthorization().WithTags("Acompañante");
 }
 
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapPut("/api/mayores/{idMayor:int}/contactos/{idContacto:int}",
+        async (
+            int idMayor,
+            int idContacto,
+            ActualizarContactoRequest solicitud,
+            ContactoRepository repositorio,
+            CancellationToken cancellationToken) =>
+        {
+            var nombre = solicitud.Nombre?.Trim();
+            var apellido = solicitud.Apellido?.Trim();
+            var telefono = solicitud.Telefono?.Trim();
+            var tipoVinculo = solicitud.TipoVinculo?.Trim();
+
+            if (idMayor <= 0 ||
+                idContacto <= 0 ||
+                string.IsNullOrWhiteSpace(nombre) ||
+                nombre.Length > 100 ||
+                (apellido?.Length ?? 0) > 100 ||
+                string.IsNullOrWhiteSpace(telefono) ||
+                telefono.Length > 30 ||
+                string.IsNullOrWhiteSpace(tipoVinculo) ||
+                tipoVinculo.Length > 50)
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Los datos del contacto no son válidos."
+                });
+            }
+
+            if (!repositorio.ConexionConfigurada)
+            {
+                return Results.Problem(
+                    title: "Falta configurar la conexión con MySQL.",
+                    statusCode: 500);
+            }
+
+            try
+            {
+                var existeMayor = await repositorio.ExisteMayorAsync(
+                    idMayor, cancellationToken);
+
+                if (!existeMayor)
+                {
+                    return Results.NotFound(new
+                    {
+                        mensaje = "La persona mayor no existe."
+                    });
+                }
+
+                var existeContacto = await repositorio.ExisteContactoAsync(
+                    idMayor, idContacto, cancellationToken);
+
+                if (!existeContacto)
+                {
+                    return Results.NotFound(new
+                    {
+                        mensaje = "El contacto no existe o está desactivado."
+                    });
+                }
+
+                var telefonoDuplicado =
+                    await repositorio.ExisteTelefonoEnOtroContactoAsync(
+                        idMayor, idContacto, telefono, cancellationToken);
+
+                if (telefonoDuplicado)
+                {
+                    return Results.Conflict(new
+                    {
+                        mensaje = "El teléfono ya pertenece a otro contacto."
+                    });
+                }
+
+                var filasAfectadas =
+                    await repositorio.ActualizarContactoAsync(
+                        idMayor,
+                        idContacto,
+                        nombre,
+                        apellido,
+                        telefono,
+                        tipoVinculo,
+                        cancellationToken);
+
+                if (filasAfectadas == 0 &&
+                    !await repositorio.ExisteContactoAsync(
+                        idMayor, idContacto, cancellationToken))
+                {
+                    return Results.NotFound(new
+                    {
+                        mensaje = "El contacto ya no está disponible."
+                    });
+                }
+
+                return Results.Ok(new
+                {
+                    mensaje = "Contacto actualizado correctamente."
+                });
+            }
+            catch (MySqlException ex)
+            {
+                app.Logger.LogError(
+                    ex,
+                    "Falló la actualización del contacto de confianza.");
+
+                return Results.Problem(
+                    title: "No se pudo actualizar el contacto.",
+                    statusCode: 503);
+            }
+        })
+    .WithName("ActualizarContacto")
+    .WithTags("Contactos")
+    .WithOpenApi();
+}
+
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapDelete("/api/mayores/{idMayor:int}/contactos/{idContacto:int}",
+        async (
+            int idMayor,
+            int idContacto,
+            ContactoRepository repositorio,
+            CancellationToken cancellationToken) =>
+        {
+            if (idMayor <= 0 || idContacto <= 0)
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "Los IDs ingresados no son válidos."
+                });
+            }
+
+            if (!repositorio.ConexionConfigurada)
+            {
+                return Results.Problem(
+                    title: "Falta configurar la conexión con MySQL.",
+                    statusCode: 500);
+            }
+
+            try
+            {
+                var existeMayor = await repositorio.ExisteMayorAsync(
+                    idMayor, cancellationToken);
+
+                if (!existeMayor)
+                {
+                    return Results.NotFound(new
+                    {
+                        mensaje = "La persona mayor no existe."
+                    });
+                }
+
+                var existeContacto = await repositorio.ExisteContactoAsync(
+                    idMayor, idContacto, cancellationToken);
+
+                if (!existeContacto)
+                {
+                    return Results.NotFound(new
+                    {
+                        mensaje = "El contacto no existe o ya está desactivado."
+                    });
+                }
+
+                var filasAfectadas =
+                    await repositorio.DesactivarContactoAsync(
+                        idMayor, idContacto, cancellationToken);
+
+                if (filasAfectadas == 0)
+                {
+                    return Results.NotFound(new
+                    {
+                        mensaje = "El contacto ya no está disponible."
+                    });
+                }
+
+                return Results.Ok(new
+                {
+                    mensaje = "Contacto desactivado correctamente."
+                });
+            }
+            catch (MySqlException ex)
+            {
+                app.Logger.LogError(
+                    ex,
+                    "Falló la desactivación del contacto de confianza.");
+
+                return Results.Problem(
+                    title: "No se pudo desactivar el contacto.",
+                    statusCode: 503);
+            }
+        })
+    .WithName("DesactivarContacto")
+    .WithTags("Contactos")
+    .WithOpenApi();
+}
+
 app.Run();
 
 record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
