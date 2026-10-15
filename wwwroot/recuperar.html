@@ -1,0 +1,73 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>AcompañAR - Recuperar contraseña</title>
+
+    <link rel="stylesheet" href="css/Style.css">
+</head>
+
+<body>
+    <main class="registro-container">
+
+        <section class="registro-card login-card"
+                 aria-labelledby="recuperar-titulo">
+
+            <div class="logo">
+                <div class="logo-icon" aria-hidden="true">💜</div>
+                <h1>AcompañAR</h1>
+                <p>Recordar. Acompañar. Proteger.</p>
+            </div>
+
+            <div class="registro-header login-header">
+                <h2 id="recuperar-titulo">Recuperá tu contraseña</h2>
+
+                <p>
+                    Ingresá tu correo electrónico y te ayudaremos
+                    a restablecer tu contraseña.
+                </p>
+            </div>
+
+            <form id="recuperarForm">
+
+                <div class="form-group">
+                    <label for="email">Correo electrónico</label>
+
+                    <input type="email"
+                           id="email"
+                           name="email"
+                           maxlength="150"
+                           autocomplete="email"
+                           placeholder="ejemplo@email.com"
+                           required>
+                </div>
+
+                <button type="submit" class="btn-registrar">
+                    Enviar instrucciones
+                </button>
+
+                <p id="recuperarMensaje"
+                   class="login-link"
+                   role="status"
+                   aria-live="polite"></p>
+
+            </form>
+
+            <p class="login-link">
+                ¿Recordaste tu contraseña?
+                <a href="login.html">Volver a iniciar sesión</a>
+            </p>
+
+            <p class="login-link">
+                <a href="index.html">Volver al inicio</a>
+            </p>
+
+        </section>
+
+    </main>
+    <script src="js/recuperar.js"></script>
+
+</body>
+</html>
