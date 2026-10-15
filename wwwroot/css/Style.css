@@ -176,7 +176,7 @@ body {
     }
 
 
-/* BOTÓN */
+
 
 /* BOTONES */
 
@@ -204,6 +204,8 @@ body {
         background-color: #6544a5;
         color: white;
     }
+
+
 
 
 /* LINK LOGIN */
@@ -284,6 +286,11 @@ body {
     outline-offset: 4px;
 }
 
+
+
+/* =====================================
+   ESTILOS DE INICIO DE SESIÓN
+===================================== */
 
 .login-card {
     max-width: 520px;
@@ -372,6 +379,31 @@ body {
     outline: 3px solid #7654b8;
     outline-offset: 4px;
 }
+
+
+
+/* ENLACE PARA RECUPERAR CONTRASEÑA */
+
+.recuperar-password-link {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0;
+    margin-bottom: 18px;
+    visibility: visible;
+}
+
+    .recuperar-password-link a {
+        display: inline-block;
+        color: #7654b8;
+        font-size: 14px;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+        .recuperar-password-link a:hover {
+            text-decoration: underline;
+        }
+
 /* MENSAJE DE REGISTRO EXITOSO */
 
 .mensaje-registro {

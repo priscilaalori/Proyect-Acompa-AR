@@ -137,5 +137,32 @@ namespace AcompañAR.Proyecto.Repositories
 
             return comando.LastInsertedId;
         }
+
+        public async Task ActualizarPasswordAsync(
+            int idUsuario,
+            string nuevaPassword,
+            CancellationToken cancellationToken = default)
+        {
+            using var conexion = new MySqlConnection(_cadenaConexion);
+            await conexion.OpenAsync(cancellationToken);
+
+            const string consulta = @"
+        UPDATE usuario
+        SET password = @Password
+        WHERE id_usuario = @IdUsuario;";
+
+            using var comando = new MySqlCommand(consulta, conexion);
+
+            comando.Parameters.Add("@Password", MySqlDbType.VarChar).Value =
+                Convert.ToHexString(
+                    System.Security.Cryptography.SHA256.HashData(
+                        System.Text.Encoding.UTF8.GetBytes(nuevaPassword)));
+
+            comando.Parameters.Add("@IdUsuario", MySqlDbType.Int32).Value =
+                idUsuario;
+
+            await comando.ExecuteNonQueryAsync(cancellationToken);
+        }
+
     }
 }

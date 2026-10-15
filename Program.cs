@@ -10,6 +10,9 @@ using System.Security.Cryptography;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddTransient<AcompañAR.Services.EmailService>();
+builder.Services.AddTransient<AcompañAR.Services.RecuperacionPasswordService>();
+builder.Services.AddTransient<AcompañAR.Repositories.RecuperacionPasswordRepository>();
 
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -194,12 +197,14 @@ if (app.Environment.IsDevelopment())
 
             var passwordGuardada = lector.GetString(5);
 
-            var coincide = CryptographicOperations.FixedTimeEquals(
-                SHA256.HashData(
-                    Encoding.UTF8.GetBytes(passwordGuardada)),
+            var passwordIngresadaHash = Convert.ToHexString(
                 SHA256.HashData(
                     Encoding.UTF8.GetBytes(password)));
 
+            var coincide = string.Equals(
+                passwordGuardada,
+                passwordIngresadaHash,
+                StringComparison.OrdinalIgnoreCase);
             if (!coincide)
             {
                 return Results.Json(new
@@ -343,6 +348,89 @@ if (app.Environment.IsDevelopment())
     .WithTags("Autenticación")
     .WithOpenApi();
 }
+app.MapPost("/api/auth/solicitar-recuperacion",
+    async (
+        AcompañAR.DTO.SolicitudRecuperacionRequest request,
+        AcompañAR.Services.RecuperacionPasswordService servicio) =>
+    {
+        if (string.IsNullOrWhiteSpace(request.Email))
+        {
+            return Results.BadRequest(new
+            {
+                mensaje = "Ingresá un correo electrónico válido."
+            });
+        }
+
+        try
+        {
+            await servicio.SolicitarRecuperacionAsync(
+                request.Email.Trim());
+
+            return Results.Ok(new
+            {
+                mensaje = "Si el correo está registrado, recibirás instrucciones para recuperar tu contraseña."
+            });
+        }
+        catch (Exception)
+        {
+            return Results.Problem(
+                "No se pudo procesar la solicitud. Intentá nuevamente más tarde.");
+        }
+    });
+
+app.MapPost("/api/auth/restablecer-password",
+    async (
+        AcompañAR.DTO.RestablecerPasswordRequest request,
+        AcompañAR.Services.RecuperacionPasswordService servicio) =>
+    {
+        if (string.IsNullOrWhiteSpace(request.Token))
+        {
+            return Results.BadRequest(new
+            {
+                mensaje = "El enlace de recuperación no es válido."
+            });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.NuevaPassword) ||
+            request.NuevaPassword.Length < 8 ||
+            request.NuevaPassword.Length > 16)
+        {
+            return Results.BadRequest(new
+            {
+                mensaje = "La contraseña debe tener entre 8 y 16 caracteres."
+            });
+        }
+
+        try
+        {
+            bool resultado = await servicio.RestablecerPasswordAsync(
+                request.Token,
+                request.NuevaPassword);
+
+            if (!resultado)
+            {
+                return Results.BadRequest(new
+                {
+                    mensaje = "El enlace venció o ya fue utilizado. Solicitá uno nuevo."
+                });
+            }
+
+            return Results.Ok(new
+            {
+                mensaje = "¡Contraseña actualizada correctamente!"
+            });
+        }
+        catch (Exception)
+        {
+            return Results.Problem(
+                "No se pudo actualizar la contraseña. Intentá nuevamente.");
+        }
+    });
+
+
+
+
+
 
 if (app.Environment.IsDevelopment())
 {
