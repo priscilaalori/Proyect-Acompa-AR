@@ -327,10 +327,21 @@ if (app.Environment.IsDevelopment())
                 await repositorio.RegistrarUsuarioAsync(
                     solicitud, cancellationToken);
 
+            string? codigoMayor = null;
+
+            if (tipoUsuario == "MAYOR")
+            {
+                codigoMayor = $"MAY-{identificadorUsuario:D6}";
+
+                await repositorio.AsignarCodigoMayorAsync(
+                    identificadorUsuario, codigoMayor, cancellationToken);
+            }
+
             return Results.Json(new
             {
                 mensaje = "Usuario registrado correctamente.",
-                idUsuario = identificadorUsuario
+                idUsuario = identificadorUsuario,
+                codigoMayor
             }, statusCode: 201);
         }
         catch (MySqlException excepcion)
