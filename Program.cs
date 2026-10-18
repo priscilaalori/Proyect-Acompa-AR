@@ -1,3 +1,4 @@
+using AcompañAR.Services;
 using Acompañar.Proyecto.DTO;
 using AcompañAR.Proyecto.DTO;
 using AcompañAR.Proyecto.Repositories;
@@ -19,6 +20,8 @@ builder.Services.AddTransient<AcompañAR.Repositories.RecuperacionPasswordReposi
 
 builder.Services.AddScoped<ContactoRepository>();
 builder.Services.AddScoped<UsuarioRepository>();
+builder.Services.AddScoped<MedicamentoRepository>();
+builder.Services.AddScoped<MedicamentoService>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -642,14 +645,14 @@ if (app.Environment.IsDevelopment())
             comando.Parameters.Add("@idMayor", MySqlDbType.Int32).Value = idMayor;
             comando.CommandText = """
                 SELECT nombre, dosis, frecuencia, TIME_FORMAT(horario, '%H:%i'),
-                       DATE_FORMAT(fecha_inicio, '%Y-%m-%d'), DATE_FORMAT(fecha_fin, '%Y-%m-%d')
+                       DATE_FORMAT(fecha_inicio, '%Y-%m-%d'), DATE_FORMAT(fecha_fin, '%Y-%m-%d'), id_medicamento
                 FROM medicamento WHERE id_mayor = @idMayor AND estado = TRUE
                 ORDER BY horario, id_medicamento;
                 """;
             var medicamentos = new List<object>();
             using (var lector = await comando.ExecuteReaderAsync(cancellationToken))
                 while (await lector.ReadAsync(cancellationToken))
-                    medicamentos.Add(new { nombre = lector.GetString(0), dosis = lector.GetString(1),
+                    medicamentos.Add(new { idMedicamento = lector.GetInt32(6), nombre = lector.GetString(0), dosis = lector.GetString(1),
                         frecuencia = lector.GetString(2), horario = lector.GetString(3),
                         fechaInicio = lector.GetString(4), fechaFin = lector.IsDBNull(5) ? null : lector.GetString(5) });
 
@@ -889,6 +892,43 @@ if (app.Environment.IsDevelopment())
     .WithOpenApi();
 }
 
+var medicamentosApi = app.MapGroup("/api/acompanante/mayores/{idMayor:int}/medicamentos")
+    .RequireAuthorization().WithTags("Medicamentos");
+medicamentosApi.MapPost("", (int idMayor, MedicamentoRequest solicitud,
+    HttpContext contexto, MedicamentoService servicio, CancellationToken ct) =>
+    ProcesarMedicamento(contexto, servicio, idMayor, null, solicitud, ct));
+medicamentosApi.MapPut("/{id:int}", (int idMayor, int id, MedicamentoRequest solicitud,
+    HttpContext contexto, MedicamentoService servicio, CancellationToken ct) =>
+    ProcesarMedicamento(contexto, servicio, idMayor, id, solicitud, ct));
+medicamentosApi.MapDelete("/{id:int}", (int idMayor, int id,
+    HttpContext contexto, MedicamentoService servicio, CancellationToken ct) =>
+    ProcesarMedicamento(contexto, servicio, idMayor, id, null, ct));
+
+async Task<IResult> ProcesarMedicamento(HttpContext contexto, MedicamentoService servicio,
+    int idMayor, int? id, MedicamentoRequest? solicitud, CancellationToken ct)
+{
+    if (!contexto.User.IsInRole("ACOMPANANTE")) return Results.Forbid();
+    if (!int.TryParse(contexto.User.FindFirstValue(ClaimTypes.NameIdentifier), out var idAcompanante))
+        return Results.Unauthorized();
+    try
+    {
+        var resultado = await servicio.GuardarAsync(idAcompanante, idMayor, id, solicitud, ct);
+        return resultado.Estado switch
+        {
+            EstadoOperacionMedicamento.DatosInvalidos => Results.BadRequest(new { mensaje = resultado.Mensaje }),
+            EstadoOperacionMedicamento.SinConexion => Results.Problem(title: resultado.Mensaje, statusCode: 500),
+            EstadoOperacionMedicamento.SinVinculacion => Results.Forbid(),
+            EstadoOperacionMedicamento.NoEncontrado => Results.NotFound(new { mensaje = resultado.Mensaje }),
+            _ => Results.Json(new { idMedicamento = resultado.IdMedicamento, mensaje = resultado.Mensaje },
+                statusCode: id.HasValue ? 200 : 201)
+        };
+    }
+    catch (MySqlException ex)
+    {
+        app.Logger.LogError(ex, "No se pudo guardar el medicamento.");
+        return Results.Problem(title: "No se pudo guardar el medicamento. Intentá nuevamente.", statusCode: 503);
+    }
+}
 app.Run();
 
 record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
