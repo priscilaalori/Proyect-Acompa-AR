@@ -138,6 +138,31 @@ namespace AcompañAR.Proyecto.Repositories
             return comando.LastInsertedId;
         }
 
+        public async Task AsignarCodigoMayorAsync(
+            long idUsuario,
+            string codigoMayor,
+            CancellationToken cancellationToken)
+        {
+            using var conexion = new MySqlConnection(_cadenaConexion);
+            await conexion.OpenAsync(cancellationToken);
+
+            using var comando = new MySqlCommand(
+                """
+                UPDATE usuario
+                SET codigo_mayor = @codigoMayor
+                WHERE id_usuario = @idUsuario;
+                """,
+                conexion);
+
+            comando.Parameters.Add("@codigoMayor", MySqlDbType.VarChar)
+                .Value = codigoMayor;
+
+            comando.Parameters.Add("@idUsuario", MySqlDbType.Int64)
+                .Value = idUsuario;
+
+            await comando.ExecuteNonQueryAsync(cancellationToken);
+        }
+
         public async Task ActualizarPasswordAsync(
             int idUsuario,
             string nuevaPassword,

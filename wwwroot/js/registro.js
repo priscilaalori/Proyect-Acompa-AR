@@ -260,7 +260,8 @@ formulario.addEventListener("submit", async function (event) {
 
             
             mostrarMensajeRegistro(
-                resultado.mensaje || "¡Tu cuenta se creó correctamente!"
+                resultado.mensaje || "¡Tu cuenta se creó correctamente!",
+                resultado.codigoMayor
             );
 
             formulario.reset();
@@ -347,7 +348,7 @@ function limpiarErrores() {
         });
 }
 
-function mostrarMensajeRegistro(mensaje) {
+function mostrarMensajeRegistro(mensaje, codigoMayor) {
 
     const cartel = document.getElementById("mensajeRegistro");
 
@@ -367,6 +368,12 @@ function mostrarMensajeRegistro(mensaje) {
     detalle.className = "mensaje-detalle";
     detalle.textContent =
         "Ya sos parte de AcompañAR.";
+
+    if (codigoMayor) {
+        detalle.textContent =
+            "Tu código de persona mayor es " + codigoMayor +
+            ". Compartilo con tu acompañante para que pueda vincularse.";
+    }
 
     const boton = document.createElement("a");
     boton.classList.add("btn-volver-login");
