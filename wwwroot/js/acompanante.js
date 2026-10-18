@@ -1,6 +1,7 @@
 const mensaje = document.getElementById("panelMensaje");
 const configuracion = document.getElementById("configuracion");
 const reintentar = document.getElementById("reintentar");
+let idMayorActual = null;
 const estados = { PENDIENTE: "Pendiente", ENVIADO: "Enviado", CANCELADO: "Cancelado", PROGRAMADO: "Programado", REALIZADO: "Realizado" };
 const fecha = valor => new Intl.DateTimeFormat("es-AR").format(new Date(`${valor}T12:00:00`));
 
@@ -25,6 +26,7 @@ function mostrarLista(id, elementos, vacio, describir) {
             parrafo.textContent = detalle;
             item.append(parrafo);
         }
+        if (id === "medicamentos") agregarAcciones(item, elemento);
         lista.append(item);
     }
 }
@@ -48,6 +50,7 @@ async function cargar() {
             return;
         }
         document.getElementById("personaMayor").textContent = `Estás acompañando a ${datos.mayor.nombre} ${datos.mayor.apellido}.`;
+        idMayorActual = datos.mayor.idUsuario;
         mostrarLista("medicamentos", datos.medicamentos, "No hay medicamentos activos configurados.", m => [
             m.nombre, `Dosis: ${m.dosis}`, `${m.frecuencia} · Horario: ${m.horario}`,
             `Desde ${fecha(m.fechaInicio)}${m.fechaFin ? ` hasta ${fecha(m.fechaFin)}` : " · Sin fecha de finalización"}`
@@ -80,3 +83,130 @@ document.getElementById("cerrarSesion").addEventListener("click", async event =>
 });
 reintentar.addEventListener("click", cargar);
 window.addEventListener("pageshow", cargar);
+
+const formulario = document.getElementById("medicamentoForm");
+const avisoMedicamento = document.getElementById("medicamentoMensaje");
+const campo = nombre => document.getElementById(`med${nombre}`);
+let idEditando = null;
+let guardando = false;
+
+function actualizarFrecuencia() {
+    const tipo = campo("Frecuencia").value;
+    const intervalo = tipo === "HORAS" || tipo === "DIAS";
+    document.getElementById("intervaloGrupo").hidden = !intervalo;
+    campo("Intervalo").required = intervalo;
+    campo("Intervalo").disabled = !intervalo;
+    campo("Intervalo").max = tipo === "HORAS" ? 168 : 365;
+    document.getElementById("intervaloEtiqueta").textContent = tipo === "HORAS" ? "Cantidad de horas" : "Cantidad de días";
+    document.getElementById("finGrupo").hidden = tipo === "UNICA";
+    campo("Fin").disabled = tipo === "UNICA";
+    campo("Fin").min = campo("Inicio").value;
+    const hora = campo("Horario").value || "el horario indicado";
+    const textos = {
+        DIARIA: `Todos los días a las ${hora}.`,
+        HORAS: `Cada ${campo("Intervalo").value || "…"} horas desde la primera toma, incluso durante la noche.`,
+        DIAS: `Cada ${campo("Intervalo").value || "…"} días a las ${hora}.`,
+        UNICA: `Una sola toma a las ${hora}.`,
+        LEGADA: "La frecuencia anterior se conserva hasta que guardes una nueva pauta."
+    };
+    document.getElementById("resumenFrecuencia").textContent = textos[tipo];
+}
+
+function abrirFormulario(medicamento = null) {
+    if (guardando) return;
+    formulario.reset();
+    idEditando = medicamento?.idMedicamento ?? null;
+    document.getElementById("tituloFormulario").textContent = medicamento ? "Editar medicamento" : "Agregar medicamento";
+    campo("Nombre").value = medicamento?.nombre ?? "";
+    campo("Dosis").value = medicamento?.dosis ?? "";
+    campo("Horario").value = medicamento?.horario ?? "08:00";
+    const hoy = new Date();
+    const fechaLocal = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
+    campo("Inicio").value = medicamento?.fechaInicio ?? fechaLocal;
+    campo("Fin").value = medicamento?.fechaFin ?? "";
+    const frecuencia = (medicamento?.frecuencia ?? "Una vez por dia").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const horas = /^cada (\d+) horas?$/.exec(frecuencia);
+    const dias = /^cada (\d+) dias?$/.exec(frecuencia);
+    campo("Frecuencia").value = horas ? "HORAS" : dias ? "DIAS" : frecuencia === "toma unica" ? "UNICA" :
+        ["una vez por dia", "diaria", "todos los dias"].includes(frecuencia) ? "DIARIA" : "LEGADA";
+    campo("Intervalo").value = horas?.[1] ?? dias?.[1] ?? "8";
+    avisoMedicamento.textContent = "";
+    actualizarFrecuencia();
+    formulario.hidden = false;
+    campo("Nombre").focus();
+}
+
+function agregarAcciones(item, medicamento) {
+    const acciones = document.createElement("div");
+    acciones.className = "medicamento-acciones";
+    for (const [texto, accion] of [
+        ["Editar", () => abrirFormulario(medicamento)],
+        ["Dar de baja", () => darDeBaja(medicamento)]
+    ]) {
+        const boton = document.createElement("button");
+        boton.type = "button";
+        boton.className = "panel-boton";
+        boton.textContent = texto;
+        boton.setAttribute("aria-label", `${texto}: ${medicamento.nombre}`);
+        boton.addEventListener("click", accion);
+        acciones.append(boton);
+    }
+    item.append(acciones);
+}
+
+async function modificarMedicamento(metodo, id, datos) {
+    if (guardando) return;
+    guardando = true;
+    const botones = [...document.querySelectorAll("#configuracion button, #medicamentoForm input, #medicamentoForm select")];
+    const previos = botones.map(b => b.disabled);
+    botones.forEach(b => b.disabled = true);
+    avisoMedicamento.textContent = "Guardando cambios…";
+    try {
+        const respuesta = await fetch(`/api/acompanante/mayores/${idMayorActual}/medicamentos${id ? `/${id}` : ""}`, {
+            method: metodo,
+            headers: { "Content-Type": "application/json" },
+            ...(datos ? { body: JSON.stringify(datos) } : {})
+        });
+        if (respuesta.status === 401) { window.location.replace("login.html"); return; }
+        const resultado = await respuesta.json().catch(() => ({}));
+        if (!respuesta.ok) throw new Error(resultado.mensaje || resultado.title || "No se pudo realizar el cambio. Revisá tu vinculación e intentá nuevamente.");
+        formulario.hidden = true;
+        idEditando = null;
+        await cargar();
+        avisoMedicamento.textContent = resultado.mensaje;
+    } catch (error) {
+        avisoMedicamento.textContent = error.message === "Failed to fetch" ? "No pudimos conectar con el servidor. Conservamos los datos para reintentar." : error.message;
+    } finally {
+        botones.forEach((b, i) => b.disabled = previos[i]);
+        guardando = false;
+    }
+}
+
+async function darDeBaja(medicamento) {
+    if (guardando || !window.confirm(`¿Dar de baja ${medicamento.nombre}? Se cancelarán sus recordatorios pendientes y se conservará el historial.`)) return;
+    await modificarMedicamento("DELETE", medicamento.idMedicamento);
+}
+
+formulario.addEventListener("submit", async event => {
+    event.preventDefault();
+    if (campo("Frecuencia").value === "LEGADA") {
+        avisoMedicamento.textContent = "Elegí una repetición para guardar el medicamento.";
+        campo("Frecuencia").focus();
+        return;
+    }
+    const datos = {
+        nombre: campo("Nombre").value.trim(), dosis: campo("Dosis").value.trim(),
+        tipoFrecuencia: campo("Frecuencia").value,
+        intervalo: ["HORAS", "DIAS"].includes(campo("Frecuencia").value) ? Number(campo("Intervalo").value) : null,
+        horario: campo("Horario").value, fechaInicio: campo("Inicio").value,
+        fechaFin: campo("Frecuencia").value === "UNICA" ? campo("Inicio").value : campo("Fin").value || null
+    };
+    if (idEditando && !window.confirm("¿Guardar la nueva pauta? Se cancelarán los recordatorios pendientes de este medicamento para evitar avisos con la configuración anterior.")) return;
+    await modificarMedicamento(idEditando ? "PUT" : "POST", idEditando, datos);
+});
+formulario.addEventListener("input", actualizarFrecuencia);
+document.getElementById("nuevoMedicamento").addEventListener("click", () => abrirFormulario());
+document.getElementById("cancelarMedicamento").addEventListener("click", () => {
+    formulario.hidden = true;
+    document.getElementById("nuevoMedicamento").focus();
+});

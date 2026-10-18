@@ -21,6 +21,41 @@
         <div id="configuracion" class="panel-grid" hidden>
             <section class="panel-seccion" aria-labelledby="tituloMedicamentos">
                 <h2 id="tituloMedicamentos">💊 Medicamentos</h2>
+                <button id="nuevoMedicamento" class="panel-boton" type="button">Agregar medicamento</button>
+                <p id="medicamentoMensaje" role="status" aria-live="polite"></p>
+                <form id="medicamentoForm" class="medicamento-form" hidden>
+                    <h3 id="tituloFormulario">Agregar medicamento</h3>
+                    <label for="medNombre">Nombre</label>
+                    <input id="medNombre" required maxlength="100" autocomplete="off">
+                    <label for="medDosis">Dosis indicada</label>
+                    <input id="medDosis" required maxlength="50" placeholder="Ej.: 1 comprimido de 50 mg">
+                    <label for="medFrecuencia">Repetición</label>
+                    <select id="medFrecuencia" required>
+                        <option value="DIARIA">Todos los días</option>
+                        <option value="HORAS">Cada cierta cantidad de horas</option>
+                        <option value="DIAS">Cada cierta cantidad de días</option>
+                        <option value="UNICA">Una sola toma</option>
+                        <option value="LEGADA" disabled>Frecuencia anterior: elegí una opción para editar</option>
+                    </select>
+                    <div id="intervaloGrupo" hidden>
+                        <label for="medIntervalo" id="intervaloEtiqueta">Cantidad de horas</label>
+                        <input id="medIntervalo" type="number" min="1" max="168" step="1">
+                    </div>
+                    <label for="medHorario">Horario de la primera toma</label>
+                    <input id="medHorario" type="time" required>
+                    <label for="medInicio">Fecha de inicio</label>
+                    <input id="medInicio" type="date" required>
+                    <div id="finGrupo">
+                        <label for="medFin">Fecha de fin (opcional)</label>
+                        <input id="medFin" type="date">
+                    </div>
+                    <p id="resumenFrecuencia" aria-live="polite"></p>
+                    <p>Configurá la pauta indicada por el profesional. Guardar la frecuencia no activa el envío automático de avisos.</p>
+                    <div class="medicamento-acciones">
+                        <button type="submit" class="panel-boton">Guardar</button>
+                        <button id="cancelarMedicamento" type="button" class="panel-boton">Cancelar</button>
+                    </div>
+                </form>
                 <ul id="medicamentos" class="panel-lista"></ul>
             </section>
             <section class="panel-seccion" aria-labelledby="tituloRecordatorios">
