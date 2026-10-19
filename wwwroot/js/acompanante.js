@@ -71,6 +71,7 @@ async function cargar() {
         mostrarLista("recordatorios", datos.recordatorios, "No hay recordatorios configurados.", r => [
             r.nombre, r.tipo, `${fecha(r.fecha)} · ${r.hora}`, `Estado: ${estados[r.estado] || r.estado}`
         ]);
+        buscarRecordatorios();
         mostrarLista("turnos", datos.turnos, "No hay turnos médicos configurados.", t => [
             t.especialidad, `Profesional: ${t.medico}`, `${fecha(t.fecha)} · ${t.hora}`,
             t.direccion, t.motivo ? `Motivo: ${t.motivo}` : null, `Estado: ${estados[t.estado] || t.estado}`
@@ -405,3 +406,28 @@ async function cancelarTurno(turno) {
 
     await guardarTurno("DELETE", turno.idTurno, null);
 }
+const recordatoriosDesde = document.getElementById("recordatoriosDesde");
+const recordatoriosHasta = document.getElementById("recordatoriosHasta");
+// Por defecto, la próxima semana. "en-CA" da la fecha local como AAAA-MM-DD.
+recordatoriosDesde.value = new Date().toLocaleDateString("en-CA");
+recordatoriosHasta.value = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString("en-CA");
+
+async function buscarRecordatorios() {
+    const mensajeRecordatorios = document.getElementById("recordatoriosMensaje");
+    mensajeRecordatorios.textContent = "";
+    try {
+        const respuesta = await fetch(`/api/acompanante/mayores/${idMayorActual}/recordatorios?desde=${recordatoriosDesde.value}&hasta=${recordatoriosHasta.value}`, { cache: "no-store" });
+        const datos = await respuesta.json().catch(() => ({}));
+        if (!respuesta.ok) throw new Error(datos.mensaje || "No pudimos consultar los recordatorios.");
+        mostrarLista("recordatorios", datos, "No hay recordatorios pendientes en esas fechas.", r => [
+            r.nombre, r.tipo, `${fecha(r.fecha)} · ${r.hora}`, `Estado: ${estados[r.estado] || r.estado}`
+        ]);
+    } catch (error) {
+        mensajeRecordatorios.textContent = error.message;
+    }
+}
+
+document.getElementById("recordatoriosForm").addEventListener("submit", event => {
+    event.preventDefault();
+    buscarRecordatorios();
+});

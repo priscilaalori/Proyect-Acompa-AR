@@ -60,6 +60,14 @@
             </section>
             <section class="panel-seccion" aria-labelledby="tituloRecordatorios">
                 <h2 id="tituloRecordatorios">🔔 Recordatorios</h2>
+                <form id="recordatoriosForm" class="medicamento-form">
+                    <label for="recordatoriosDesde">Desde</label>
+                    <input id="recordatoriosDesde" type="date" required>
+                    <label for="recordatoriosHasta">Hasta</label>
+                    <input id="recordatoriosHasta" type="date" required>
+                    <button type="submit" class="panel-boton">Buscar pendientes</button>
+                </form>
+                <p id="recordatoriosMensaje" role="status" aria-live="polite"></p>
                 <ul id="recordatorios" class="panel-lista"></ul>
             </section>
 
