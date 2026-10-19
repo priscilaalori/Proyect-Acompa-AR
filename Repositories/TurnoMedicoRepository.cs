@@ -80,6 +80,16 @@ public sealed class TurnoMedicoRepository
                 await transaccion.RollbackAsync(ct);
                 return (true, null);
             }
+
+            // Al editar o cancelar, el recordatorio anterior ya no sirve.
+            comando.CommandText = """
+                UPDATE recordatorio
+                SET estado = 'CANCELADO'
+                WHERE id_turno = @id
+                  AND estado = 'PENDIENTE';
+                """;
+
+            await comando.ExecuteNonQueryAsync(ct);
         }
 
         comando.Parameters.Clear();
@@ -131,6 +141,14 @@ public sealed class TurnoMedicoRepository
 
             await comando.ExecuteNonQueryAsync(ct);
 
+            // Como en la carga de datos, el recordatorio sale un día antes del turno.
+            comando.CommandText = """
+                INSERT INTO recordatorio (id_turno, fecha_hora, estado)
+                VALUES (@id, GREATEST(NOW(), TIMESTAMP(@fecha, @hora) - INTERVAL 1 DAY), 'PENDIENTE');
+                """;
+
+            await comando.ExecuteNonQueryAsync(ct);
+
             await transaccion.CommitAsync(ct);
             return (true, id.Value);
         }
@@ -147,6 +165,14 @@ public sealed class TurnoMedicoRepository
         await comando.ExecuteNonQueryAsync(ct);
 
         var nuevoId = comando.LastInsertedId;
+
+        comando.Parameters.AddWithValue("@id", nuevoId);
+        comando.CommandText = """
+            INSERT INTO recordatorio (id_turno, fecha_hora, estado)
+            VALUES (@id, GREATEST(NOW(), TIMESTAMP(@fecha, @hora) - INTERVAL 1 DAY), 'PENDIENTE');
+            """;
+
+        await comando.ExecuteNonQueryAsync(ct);
 
         await transaccion.CommitAsync(ct);
         return (true, nuevoId);

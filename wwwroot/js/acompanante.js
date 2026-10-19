@@ -40,6 +40,10 @@ function mostrarLista(id, elementos, vacio, describir) {
         if (id === "turnos") {
             agregarAccionesTurno(item, elemento);
         }
+
+        if (id === "recordatorios" && elemento.idRecordatorio && !elemento.cumplimiento) {
+            agregarAccionesRecordatorio(item, elemento);
+        }
         lista.append(item);
     }
 }
@@ -71,6 +75,7 @@ async function cargar() {
         mostrarLista("recordatorios", datos.recordatorios, "No hay recordatorios configurados.", r => [
             r.nombre, r.tipo, `${fecha(r.fecha)} · ${r.hora}`, `Estado: ${estados[r.estado] || r.estado}`
         ]);
+        buscarRecordatorios();
         mostrarLista("turnos", datos.turnos, "No hay turnos médicos configurados.", t => [
             t.especialidad, `Profesional: ${t.medico}`, `${fecha(t.fecha)} · ${t.hora}`,
             t.direccion, t.motivo ? `Motivo: ${t.motivo}` : null, `Estado: ${estados[t.estado] || t.estado}`
@@ -404,4 +409,63 @@ async function cancelarTurno(turno) {
     if (!confirmar) return;
 
     await guardarTurno("DELETE", turno.idTurno, null);
+}
+const recordatoriosDesde = document.getElementById("recordatoriosDesde");
+const recordatoriosHasta = document.getElementById("recordatoriosHasta");
+// Por defecto, la próxima semana. "en-CA" da la fecha local como AAAA-MM-DD.
+recordatoriosDesde.value = new Date().toLocaleDateString("en-CA");
+recordatoriosHasta.value = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString("en-CA");
+
+async function buscarRecordatorios() {
+    const mensajeRecordatorios = document.getElementById("recordatoriosMensaje");
+    mensajeRecordatorios.textContent = "";
+    try {
+        const respuesta = await fetch(`/api/acompanante/mayores/${idMayorActual}/recordatorios?desde=${recordatoriosDesde.value}&hasta=${recordatoriosHasta.value}`, { cache: "no-store" });
+        const datos = await respuesta.json().catch(() => ({}));
+        if (!respuesta.ok) throw new Error(datos.mensaje || "No pudimos consultar los recordatorios.");
+        mostrarLista("recordatorios", datos, "No hay recordatorios pendientes en esas fechas.", r => [
+            r.nombre, r.tipo, `${fecha(r.fecha)} · ${r.hora}`, `Estado: ${estados[r.estado] || r.estado}`,
+            r.cumplimiento ? `Cumplimiento: ${r.cumplimiento === "CUMPLIDO" ? "Cumplido" : "No cumplido"}` : null
+        ]);
+    } catch (error) {
+        mensajeRecordatorios.textContent = error.message;
+    }
+}
+
+document.getElementById("recordatoriosForm").addEventListener("submit", event => {
+    event.preventDefault();
+    buscarRecordatorios();
+});
+
+function agregarAccionesRecordatorio(item, recordatorio) {
+    const acciones = document.createElement("div");
+    acciones.className = "medicamento-acciones";
+    for (const [texto, estado] of [["Se cumplió", "CUMPLIDO"], ["No se cumplió", "NO_CUMPLIDO"]]) {
+        const boton = document.createElement("button");
+        boton.type = "button";
+        boton.className = "panel-boton";
+        boton.textContent = texto;
+        boton.setAttribute("aria-label", `${texto}: ${recordatorio.nombre} del ${fecha(recordatorio.fecha)} a las ${recordatorio.hora}`);
+        boton.addEventListener("click", () => registrarCumplimiento(recordatorio, estado, texto));
+        acciones.append(boton);
+    }
+    item.append(acciones);
+}
+
+async function registrarCumplimiento(recordatorio, estado, texto) {
+    if (!window.confirm(`¿Registrar "${texto}" para ${recordatorio.nombre} del ${fecha(recordatorio.fecha)} a las ${recordatorio.hora}? Después no se puede cambiar.`)) return;
+    const mensajeRecordatorios = document.getElementById("recordatoriosMensaje");
+    try {
+        const respuesta = await fetch(`/api/recordatorios/${recordatorio.idRecordatorio}/cumplimiento`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ estado })
+        });
+        const datos = await respuesta.json().catch(() => ({}));
+        if (!respuesta.ok) throw new Error(datos.mensaje || "No pudimos registrar el cumplimiento.");
+        await buscarRecordatorios();
+        mensajeRecordatorios.textContent = datos.mensaje;
+    } catch (error) {
+        mensajeRecordatorios.textContent = error.message;
+    }
 }

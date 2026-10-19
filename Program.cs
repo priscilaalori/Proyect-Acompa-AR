@@ -24,6 +24,7 @@ builder.Services.AddScoped<TurnoMedicoService>();
 builder.Services.AddScoped<UsuarioRepository>();
 builder.Services.AddScoped<MedicamentoRepository>();
 builder.Services.AddScoped<MedicamentoService>();
+builder.Services.AddScoped<RecordatorioRepository>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -1022,7 +1023,45 @@ async Task<IResult> ProcesarTurnoMedico(
     }
 }
 
+app.MapGet("/api/acompanante/mayores/{idMayor:int}/recordatorios", async (int idMayor, DateOnly? desde, DateOnly? hasta,
+    HttpContext contexto, RecordatorioRepository repositorio, CancellationToken ct) =>
+{
+    if (!contexto.User.IsInRole("ACOMPANANTE")) return Results.Forbid();
+    if (desde is null || hasta is null || hasta < desde)
+        return Results.BadRequest(new { mensaje = "Revisá las fechas: la fecha hasta no puede ser anterior a la fecha desde." });
+    try
+    {
+        var recordatorios = await repositorio.ListarPendientesAsync(
+            int.Parse(contexto.User.FindFirstValue(ClaimTypes.NameIdentifier)!), idMayor, desde.Value, hasta.Value, ct);
+        return recordatorios is null ? Results.Forbid() : Results.Ok(recordatorios);
+    }
+    catch (MySqlException ex)
+    {
+        app.Logger.LogError(ex, "No se pudieron consultar los recordatorios.");
+        return Results.Problem(title: "No se pudieron consultar los recordatorios. Intentá nuevamente.", statusCode: 503);
+    }
+}).RequireAuthorization().WithTags("Recordatorios");
 
+app.MapPost("/api/recordatorios/{idRecordatorio:int}/cumplimiento", async (int idRecordatorio, CumplimientoRequest solicitud,
+    HttpContext contexto, RecordatorioRepository repositorio, CancellationToken ct) =>
+{
+    if (!contexto.User.IsInRole("MAYOR") && !contexto.User.IsInRole("ACOMPANANTE")) return Results.Forbid();
+    if (solicitud.Estado is not ("CUMPLIDO" or "NO_CUMPLIDO"))
+        return Results.BadRequest(new { mensaje = "Indicá si se cumplió (CUMPLIDO) o no (NO_CUMPLIDO)." });
+    try
+    {
+        var (existe, yaRegistrado) = await repositorio.RegistrarCumplimientoAsync(
+            int.Parse(contexto.User.FindFirstValue(ClaimTypes.NameIdentifier)!), idRecordatorio, solicitud.Estado, ct);
+        if (!existe) return Results.NotFound(new { mensaje = "El recordatorio no existe." });
+        if (yaRegistrado) return Results.Conflict(new { mensaje = "El cumplimiento ya fue registrado." });
+        return Results.Json(new { mensaje = "Cumplimiento registrado." }, statusCode: 201);
+    }
+    catch (MySqlException ex)
+    {
+        app.Logger.LogError(ex, "No se pudo registrar el cumplimiento.");
+        return Results.Problem(title: "No se pudo registrar el cumplimiento. Intentá nuevamente.", statusCode: 503);
+    }
+}).RequireAuthorization().WithTags("Recordatorios");
 
 
 app.Run();

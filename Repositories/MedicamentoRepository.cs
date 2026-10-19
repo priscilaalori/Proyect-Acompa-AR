@@ -16,7 +16,7 @@ public sealed class MedicamentoRepository
 
     // La vinculación se verifica dentro de la misma transacción que la escritura.
     public async Task<(bool Vinculado, long? IdMedicamento)> GuardarAsync(
-        int idAcompanante, int idMayor, int? id, Medicamento? medicamento, CancellationToken ct)
+        int idAcompanante, int idMayor, int? id, Medicamento? medicamento, TimeSpan intervalo, CancellationToken ct)
     {
         using var conexion = new MySqlConnection(_cadenaConexion);
         await conexion.OpenAsync(ct);
@@ -58,6 +58,20 @@ public sealed class MedicamentoRepository
         }
         await comando.ExecuteNonQueryAsync(ct);
         var identificador = id.HasValue ? id.Value : comando.LastInsertedId;
+        if (medicamento is not null)
+        {
+            // Un recordatorio por cada toma futura. Sin fecha de fin, los próximos 30 días.
+            comando.Parameters.AddWithValue("@medicamento", identificador);
+            comando.Parameters.AddWithValue("@fechaHora", DateTime.MinValue);
+            comando.CommandText = "INSERT INTO recordatorio (id_medicamento, fecha_hora, estado) VALUES (@medicamento, @fechaHora, 'PENDIENTE')";
+            var hasta = (medicamento.FechaFin ?? DateTime.Today.AddDays(30)).AddDays(1);
+            for (var toma = medicamento.FechaInicio + medicamento.Horario; toma < hasta; toma += intervalo)
+            {
+                if (toma <= DateTime.Now) continue;
+                comando.Parameters["@fechaHora"].Value = toma;
+                await comando.ExecuteNonQueryAsync(ct);
+            }
+        }
         await transaccion.CommitAsync(ct);
         return (true, identificador);
     }
