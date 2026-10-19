@@ -24,9 +24,22 @@ function mostrarLista(id, elementos, vacio, describir) {
         for (const detalle of detalles.filter(Boolean)) {
             const parrafo = document.createElement("p");
             parrafo.textContent = detalle;
+
+            if (id === "turnos" && elemento.estado === "CANCELADO" && detalle.startsWith("Estado:")) {
+                parrafo.innerHTML = 'Estado: <span class="estado-cancelado">Cancelado</span>';
+            } else {
+                parrafo.textContent = detalle;
+            }
+
             item.append(parrafo);
         }
-        if (id === "medicamentos") agregarAcciones(item, elemento);
+        if (id === "medicamentos") {
+            agregarAcciones(item, elemento);
+        }
+
+        if (id === "turnos") {
+            agregarAccionesTurno(item, elemento);
+        }
         lista.append(item);
     }
 }
@@ -153,6 +166,31 @@ function agregarAcciones(item, medicamento) {
     }
     item.append(acciones);
 }
+function agregarAccionesTurno(item, turno) {
+   
+    if (turno.estado !== "PROGRAMADO") return;
+
+    const acciones = document.createElement("div");
+    acciones.className = "medicamento-acciones";
+
+    for (const [texto, accion] of [
+        ["Modificar", () => abrirFormularioTurnoEdicion(turno)],
+        ["Cancelar turno", () => cancelarTurno(turno)]
+    ]) {
+        const boton = document.createElement("button");
+        boton.type = "button";
+        boton.className = "panel-boton";
+        boton.textContent = texto;
+        boton.setAttribute(
+            "aria-label",
+            `${texto}: ${turno.especialidad}`
+        );
+        boton.addEventListener("click", accion);
+        acciones.append(boton);
+    }
+
+    item.append(acciones);
+}
 
 async function modificarMedicamento(metodo, id, datos) {
     if (guardando) return;
@@ -210,3 +248,160 @@ document.getElementById("cancelarMedicamento").addEventListener("click", () => {
     formulario.hidden = true;
     document.getElementById("nuevoMedicamento").focus();
 });
+
+const formularioTurno = document.getElementById("turnoForm");
+const avisoTurno = document.getElementById("turnoMensaje");
+
+const campoTurno = nombre =>
+    document.getElementById(`turno${nombre}`);
+
+let guardandoTurno = false;
+let idTurnoEditando = null;
+
+function abrirFormularioTurno() {
+    if (guardandoTurno) return;
+
+    formularioTurno.reset();
+    idTurnoEditando = null;
+
+    document.getElementById("tituloFormularioTurno").textContent =
+        "Agregar turno médico";
+
+    formularioTurno.hidden = false;
+    avisoTurno.textContent = "";
+
+    campoTurno("Especialidad").focus();
+}
+
+function abrirFormularioTurnoEdicion(turno) {
+    if (guardandoTurno) return;
+
+    formularioTurno.reset();
+    idTurnoEditando = turno.idTurno;
+
+    document.getElementById("tituloFormularioTurno").textContent =
+        "Modificar turno médico";
+
+    campoTurno("Especialidad").value = turno.especialidad;
+    campoTurno("Medico").value = turno.medico;
+    campoTurno("Fecha").value = turno.fecha;
+    campoTurno("Hora").value = turno.hora;
+    campoTurno("Direccion").value = turno.direccion;
+    campoTurno("Motivo").value = turno.motivo || "";
+
+    avisoTurno.textContent = "";
+    formularioTurno.hidden = false;
+
+    campoTurno("Especialidad").focus();
+}
+
+document.getElementById("nuevoTurno").addEventListener("click", () => {
+    abrirFormularioTurno();
+});
+
+document.getElementById("cancelarTurno").addEventListener("click", () => {
+    formularioTurno.hidden = true;
+    avisoTurno.textContent = "";
+});
+
+async function guardarTurno(metodo, id, datos) {
+    if (guardandoTurno) return;
+
+    if (!idMayorActual) {
+        avisoTurno.textContent =
+            "No encontramos una persona mayor vinculada.";
+        return;
+    }
+
+    guardandoTurno = true;
+
+    const botones = [
+        ...formularioTurno.querySelectorAll("button, input, textarea, select")
+    ];
+    const estadosPrevios = botones.map(boton => boton.disabled);
+
+    botones.forEach(boton => boton.disabled = true);
+    avisoTurno.textContent = "Guardando turno médico…";
+
+    try {
+        const ruta =
+            `/api/acompanante/mayores/${idMayorActual}/turnos` +
+            (id ? `/${id}` : "");
+
+        const respuesta = await fetch(ruta, {
+            method: metodo,
+            headers: {
+                "Content-Type": "application/json"
+            },
+            ...(datos ? { body: JSON.stringify(datos) } : {})
+        });
+
+        if (respuesta.status === 401) {
+            window.location.replace("login.html");
+            return;
+        }
+
+        const resultado = await respuesta.json().catch(() => ({}));
+
+        if (!respuesta.ok) {
+            throw new Error(
+                resultado.mensaje ||
+                resultado.title ||
+                "No se pudo guardar el turno médico."
+            );
+        }
+
+        formularioTurno.hidden = true;
+        formularioTurno.reset();
+        idTurnoEditando = null;
+
+        await cargar();
+
+        avisoTurno.textContent =
+            resultado.mensaje || "Turno médico guardado correctamente.";
+
+    } catch (error) {
+        avisoTurno.textContent =
+            error.message === "Failed to fetch"
+                ? "No pudimos conectar con el servidor. Intentá nuevamente."
+                : error.message;
+    } finally {
+        botones.forEach((boton, i) => {
+            boton.disabled = estadosPrevios[i];
+        });
+
+        guardandoTurno = false;
+    }
+}
+
+formularioTurno.addEventListener("submit", async event => {
+    event.preventDefault();
+
+    const datos = {
+        especialidad: campoTurno("Especialidad").value.trim(),
+        nombreMedico: campoTurno("Medico").value.trim(),
+        fecha: campoTurno("Fecha").value,
+        hora: campoTurno("Hora").value,
+        direccion: campoTurno("Direccion").value.trim(),
+        motivo: campoTurno("Motivo").value.trim() || null
+    };
+
+    await guardarTurno(
+        idTurnoEditando ? "PUT" : "POST",
+        idTurnoEditando,
+        datos
+    );
+});
+
+async function cancelarTurno(turno) {
+    if (guardandoTurno) return;
+
+    const confirmar = window.confirm(
+        `¿Querés cancelar el turno de ${turno.especialidad} ` +
+        `del ${fecha(turno.fecha)} a las ${turno.hora}?`
+    );
+
+    if (!confirmar) return;
+
+    await guardarTurno("DELETE", turno.idTurno, null);
+}

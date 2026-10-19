@@ -19,6 +19,8 @@ builder.Services.AddTransient<AcompañAR.Repositories.RecuperacionPasswordReposi
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 
 builder.Services.AddScoped<ContactoRepository>();
+builder.Services.AddScoped<TurnoMedicoRepository>();
+builder.Services.AddScoped<TurnoMedicoService>();
 builder.Services.AddScoped<UsuarioRepository>();
 builder.Services.AddScoped<MedicamentoRepository>();
 builder.Services.AddScoped<MedicamentoService>();
@@ -657,16 +659,19 @@ if (app.Environment.IsDevelopment())
                         fechaInicio = lector.GetString(4), fechaFin = lector.IsDBNull(5) ? null : lector.GetString(5) });
 
             comando.CommandText = """
-                SELECT t.especialidad, t.nombre_medico, DATE_FORMAT(t.fecha, '%Y-%m-%d'),
-                       TIME_FORMAT(t.hora, '%H:%i'), t.direccion, t.motivo, t.estado
-                FROM turno_medico t WHERE t.id_mayor = @idMayor ORDER BY t.fecha, t.hora, t.id_turno;
-                """;
+    SELECT t.especialidad, t.nombre_medico, DATE_FORMAT(t.fecha, '%Y-%m-%d'),
+           TIME_FORMAT(t.hora, '%H:%i'), t.direccion, t.motivo, t.estado,
+           t.id_turno
+    FROM turno_medico t WHERE t.id_mayor = @idMayor ORDER BY t.fecha, t.hora, t.id_turno;
+    """;
             var turnos = new List<object>();
             using (var lector = await comando.ExecuteReaderAsync(cancellationToken))
                 while (await lector.ReadAsync(cancellationToken))
                     turnos.Add(new { especialidad = lector.GetString(0), medico = lector.GetString(1),
                         fecha = lector.GetString(2), hora = lector.GetString(3), direccion = lector.GetString(4),
-                        motivo = lector.IsDBNull(5) ? null : lector.GetString(5), estado = lector.GetString(6) });
+                        motivo = lector.IsDBNull(5) ? null : lector.GetString(5), estado = lector.GetString(6),
+                        idTurno = lector.GetInt32(7)
+                    });
 
             comando.CommandText = """
                 SELECT COALESCE(m.nombre, t.especialidad),
@@ -929,6 +934,97 @@ async Task<IResult> ProcesarMedicamento(HttpContext contexto, MedicamentoService
         return Results.Problem(title: "No se pudo guardar el medicamento. Intentá nuevamente.", statusCode: 503);
     }
 }
+
+var turnosApi = app.MapGroup(
+    "/api/acompanante/mayores/{idMayor:int}/turnos")
+    .RequireAuthorization()
+    .WithTags("Turnos médicos");
+
+turnosApi.MapPost("", (
+    int idMayor,
+    TurnoMedicoRequest solicitud,
+    HttpContext contexto,
+    TurnoMedicoService servicio,
+    CancellationToken ct) =>
+    ProcesarTurnoMedico(contexto, servicio, idMayor, null, solicitud, ct));
+
+turnosApi.MapPut("/{id:int}", (
+    int idMayor,
+    int id,
+    TurnoMedicoRequest solicitud,
+    HttpContext contexto,
+    TurnoMedicoService servicio,
+    CancellationToken ct) =>
+    ProcesarTurnoMedico(contexto, servicio, idMayor, id, solicitud, ct));
+
+turnosApi.MapDelete("/{id:int}", (
+    int idMayor,
+    int id,
+    HttpContext contexto,
+    TurnoMedicoService servicio,
+    CancellationToken ct) =>
+    ProcesarTurnoMedico(contexto, servicio, idMayor, id, null, ct));
+
+
+async Task<IResult> ProcesarTurnoMedico(
+    HttpContext contexto,
+    TurnoMedicoService servicio,
+    int idMayor,
+    int? id,
+    TurnoMedicoRequest? solicitud,
+    CancellationToken ct)
+{
+    if (!contexto.User.IsInRole("ACOMPANANTE"))
+        return Results.Forbid();
+
+    if (!int.TryParse(
+        contexto.User.FindFirstValue(ClaimTypes.NameIdentifier),
+        out var idAcompanante))
+        return Results.Unauthorized();
+
+    try
+    {
+        var resultado = await servicio.GuardarAsync(
+            idAcompanante, idMayor, id, solicitud, ct);
+
+        return resultado.Estado switch
+        {
+            EstadoOperacionTurnoMedico.DatosInvalidos =>
+                Results.BadRequest(new { mensaje = resultado.Mensaje }),
+
+            EstadoOperacionTurnoMedico.SinConexion =>
+                Results.Problem(
+                    title: resultado.Mensaje,
+                    statusCode: 500),
+
+            EstadoOperacionTurnoMedico.SinVinculacion =>
+                Results.Forbid(),
+
+            EstadoOperacionTurnoMedico.NoEncontrado =>
+                Results.NotFound(new { mensaje = resultado.Mensaje }),
+
+            _ => Results.Json(
+                new
+                {
+                    idTurno = resultado.IdTurno,
+                    mensaje = resultado.Mensaje
+                },
+                statusCode: id.HasValue ? 200 : 201)
+        };
+    }
+    catch (MySqlException ex)
+    {
+        app.Logger.LogError(ex, "No se pudo guardar el turno médico.");
+
+        return Results.Problem(
+    title: "No se pudo guardar el turno médico. Intentá nuevamente.",
+    statusCode: 503);
+    }
+}
+
+
+
+
 app.Run();
 
 record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)

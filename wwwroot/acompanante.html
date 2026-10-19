@@ -62,8 +62,63 @@
                 <h2 id="tituloRecordatorios">🔔 Recordatorios</h2>
                 <ul id="recordatorios" class="panel-lista"></ul>
             </section>
+
+
+
             <section class="panel-seccion" aria-labelledby="tituloTurnos">
                 <h2 id="tituloTurnos">📅 Turnos médicos</h2>
+
+                <button type="button" id="nuevoTurno" class="panel-boton">
+                    Agregar turno médico
+                </button>
+
+                <p id="turnoMensaje" role="status" aria-live="polite"></p>
+
+                <form id="turnoForm" hidden>
+                    <h3 id="tituloFormularioTurno">Agregar turno médico</h3>
+
+                    <label for="turnoEspecialidad">Especialidad</label>
+                    <input type="text"
+                           id="turnoEspecialidad"
+                           maxlength="100"
+                           required>
+
+                    <label for="turnoMedico">Nombre del profesional</label>
+                    <input type="text"
+                           id="turnoMedico"
+                           maxlength="150"
+                           required>
+
+                    <label for="turnoFecha">Fecha</label>
+                    <input type="date"
+                           id="turnoFecha"
+                           required>
+
+                    <label for="turnoHora">Hora</label>
+                    <input type="time"
+                           id="turnoHora"
+                           required>
+
+                    <label for="turnoDireccion">Dirección</label>
+                    <input type="text"
+                           id="turnoDireccion"
+                           maxlength="200"
+                           required>
+
+                    <label for="turnoMotivo">Motivo (opcional)</label>
+                    <textarea id="turnoMotivo"
+                              maxlength="255"
+                              rows="3"></textarea>
+
+                    <button type="submit" class="panel-boton">
+                        Guardar turno
+                    </button>
+
+                    <button type="button" id="cancelarTurno" class="panel-boton">
+                        Cancelar
+                    </button>
+                </form>
+
                 <ul id="turnos" class="panel-lista"></ul>
             </section>
         </div>
