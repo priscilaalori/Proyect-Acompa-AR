@@ -51,8 +51,15 @@ public sealed class MedicamentoService
             Estado = true
         };
 
+        var intervalo = solicitud?.TipoFrecuencia switch
+        {
+            "HORAS" => TimeSpan.FromHours(solicitud.Intervalo!.Value),
+            "DIAS" => TimeSpan.FromDays(solicitud.Intervalo!.Value),
+            _ => TimeSpan.FromDays(1)
+        };
+
         var resultado = await _repository.GuardarAsync(
-            idAcompanante, idMayor, id, medicamento, cancellationToken);
+            idAcompanante, idMayor, id, medicamento, intervalo, cancellationToken);
         if (!resultado.Vinculado)
             return new(EstadoOperacionMedicamento.SinVinculacion, "No tenés una vinculación aceptada con esta persona mayor.");
         if (resultado.IdMedicamento is null)
