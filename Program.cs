@@ -453,6 +453,7 @@ if (app.Environment.IsDevelopment())
 {
     app.MapGet("/api/mayores/{idMayor:int}/contactos", async (
         int idMayor,
+        HttpContext contexto,
         ContactoRepository repositorio,
         CancellationToken cancellationToken) =>
     {
@@ -471,17 +472,29 @@ if (app.Environment.IsDevelopment())
                 statusCode: 500);
         }
 
+        if (!contexto.User.IsInRole("ACOMPANANTE"))
+        {
+            return Results.Forbid();
+        }
+
+        if (!int.TryParse(
+            contexto.User.FindFirstValue(ClaimTypes.NameIdentifier),
+            out var idAcompanante))
+        {
+            return Results.Unauthorized();
+        }
+
         try
         {
-            var existeMayor = await repositorio
-                .ExisteMayorAsync(idMayor, cancellationToken);
+            var tieneVinculacion = await repositorio
+                .TieneVinculacionAceptadaAsync(
+                idAcompanante,
+                idMayor,
+                cancellationToken);
 
-            if (!existeMayor)
+            if (!tieneVinculacion)
             {
-                return Results.NotFound(new
-                {
-                    mensaje = "La persona mayor no existe."
-                });
+                return Results.Forbid();
             }
 
             var contactos = await repositorio
@@ -502,7 +515,8 @@ if (app.Environment.IsDevelopment())
     })
     .WithName("ConsultarContactos")
     .WithTags("Contactos")
-    .WithOpenApi();
+    .WithOpenApi()
+    .RequireAuthorization();
 }
 
 if (app.Environment.IsDevelopment())
@@ -510,6 +524,7 @@ if (app.Environment.IsDevelopment())
     app.MapPost("/api/mayores/{idMayor:int}/contactos", async (
         int idMayor,
         CrearContactoRequest solicitud,
+        HttpContext contexto,
         ContactoRepository repositorio,
         CancellationToken cancellationToken) =>
     {
@@ -540,31 +555,22 @@ if (app.Environment.IsDevelopment())
                 statusCode: 500);
         }
 
+        if (!contexto.User.IsInRole("ACOMPANANTE"))
+        {
+            return Results.Forbid();
+        }
+
+        if (!int.TryParse(
+            contexto.User.FindFirstValue(ClaimTypes.NameIdentifier),
+            out var idAcompanante))
+        {
+            return Results.Unauthorized();
+        }
+
         try
         {
-            var existeMayor = await repositorio.ExisteMayorAsync(
-                idMayor, cancellationToken);
-
-            if (!existeMayor)
-            {
-                return Results.NotFound(new
-                {
-                    mensaje = "La persona mayor no existe."
-                });
-            }
-
-            var existeTelefono = await repositorio.ExisteTelefonoAsync(
-                idMayor, telefono, cancellationToken);
-
-            if (existeTelefono)
-            {
-                return Results.Conflict(new
-                {
-                    mensaje = "Este contacto ya está registrado."
-                });
-            }
-
-            var idContacto = await repositorio.RegistrarContactoAsync(
+            var resultado = await repositorio.RegistrarContactoAsync(
+                idAcompanante,
                 idMayor,
                 nombre,
                 apellido,
@@ -572,12 +578,26 @@ if (app.Environment.IsDevelopment())
                 tipoVinculo,
                 cancellationToken);
 
+            if (!resultado.Vinculado)
+            {
+                return Results.Forbid();
+            }
+
+            if (resultado.Duplicado)
+            {
+                return Results.Conflict(new
+                {
+                    mensaje = "Este contacto ya está registrado."
+                });
+            }
+
             return Results.Json(new
             {
                 mensaje = "Contacto registrado correctamente.",
-                idContacto
+                idContacto = resultado.IdContacto
             }, statusCode: 201);
         }
+
         catch (MySqlException ex)
         {
             app.Logger.LogError(
@@ -591,7 +611,8 @@ if (app.Environment.IsDevelopment())
     })
     .WithName("RegistrarContacto")
     .WithTags("Contactos")
-    .WithOpenApi();
+    .WithOpenApi()
+    .RequireAuthorization();
 }
 
 if (app.Environment.IsDevelopment())
@@ -708,6 +729,7 @@ if (app.Environment.IsDevelopment())
             int idMayor,
             int idContacto,
             ActualizarContactoRequest solicitud,
+            HttpContext contexto,
             ContactoRepository repositorio,
             CancellationToken cancellationToken) =>
         {
@@ -739,23 +761,36 @@ if (app.Environment.IsDevelopment())
                     statusCode: 500);
             }
 
+            if (!contexto.User.IsInRole("ACOMPANANTE"))
+            {
+                return Results.Forbid();
+            }
+
+            if (!int.TryParse(
+                contexto.User.FindFirstValue(ClaimTypes.NameIdentifier),
+                out var idAcompanante))
+            {
+                return Results.Unauthorized();
+            }
+
             try
             {
-                var existeMayor = await repositorio.ExisteMayorAsync(
-                    idMayor, cancellationToken);
+                var resultado = await repositorio.ActualizarContactoAsync(
+                    idAcompanante,
+                    idMayor,
+                    idContacto,
+                    nombre,
+                    apellido,
+                    telefono,
+                    tipoVinculo,
+                    cancellationToken);
 
-                if (!existeMayor)
+                if (!resultado.Vinculado)
                 {
-                    return Results.NotFound(new
-                    {
-                        mensaje = "La persona mayor no existe."
-                    });
+                    return Results.Forbid();
                 }
 
-                var existeContacto = await repositorio.ExisteContactoAsync(
-                    idMayor, idContacto, cancellationToken);
-
-                if (!existeContacto)
+                if (!resultado.Encontrado)
                 {
                     return Results.NotFound(new
                     {
@@ -763,35 +798,11 @@ if (app.Environment.IsDevelopment())
                     });
                 }
 
-                var telefonoDuplicado =
-                    await repositorio.ExisteTelefonoEnOtroContactoAsync(
-                        idMayor, idContacto, telefono, cancellationToken);
-
-                if (telefonoDuplicado)
+                if (resultado.Duplicado)
                 {
                     return Results.Conflict(new
                     {
                         mensaje = "El teléfono ya pertenece a otro contacto."
-                    });
-                }
-
-                var filasAfectadas =
-                    await repositorio.ActualizarContactoAsync(
-                        idMayor,
-                        idContacto,
-                        nombre,
-                        apellido,
-                        telefono,
-                        tipoVinculo,
-                        cancellationToken);
-
-                if (filasAfectadas == 0 &&
-                    !await repositorio.ExisteContactoAsync(
-                        idMayor, idContacto, cancellationToken))
-                {
-                    return Results.NotFound(new
-                    {
-                        mensaje = "El contacto ya no está disponible."
                     });
                 }
 
@@ -813,7 +824,8 @@ if (app.Environment.IsDevelopment())
         })
     .WithName("ActualizarContacto")
     .WithTags("Contactos")
-    .WithOpenApi();
+    .WithOpenApi()
+    .RequireAuthorization();
 }
 
 
@@ -823,6 +835,7 @@ if (app.Environment.IsDevelopment())
         async (
             int idMayor,
             int idContacto,
+            HttpContext contexto,
             ContactoRepository repositorio,
             CancellationToken cancellationToken) =>
         {
@@ -841,39 +854,36 @@ if (app.Environment.IsDevelopment())
                     statusCode: 500);
             }
 
+            if (!contexto.User.IsInRole("ACOMPANANTE"))
+            {
+                return Results.Forbid();
+            }
+
+            if (!int.TryParse(
+                contexto.User.FindFirstValue(ClaimTypes.NameIdentifier),
+                out var idAcompanante))
+            {
+                return Results.Unauthorized();
+            }
+
             try
             {
-                var existeMayor = await repositorio.ExisteMayorAsync(
-                    idMayor, cancellationToken);
+                var resultado = await repositorio.DesactivarContactoAsync(
+                    idAcompanante,
+                    idMayor,
+                    idContacto,
+                    cancellationToken);
 
-                if (!existeMayor)
+                if (!resultado.Vinculado)
                 {
-                    return Results.NotFound(new
-                    {
-                        mensaje = "La persona mayor no existe."
-                    });
+                    return Results.Forbid();
                 }
 
-                var existeContacto = await repositorio.ExisteContactoAsync(
-                    idMayor, idContacto, cancellationToken);
-
-                if (!existeContacto)
+                if (!resultado.Encontrado)
                 {
                     return Results.NotFound(new
                     {
                         mensaje = "El contacto no existe o ya está desactivado."
-                    });
-                }
-
-                var filasAfectadas =
-                    await repositorio.DesactivarContactoAsync(
-                        idMayor, idContacto, cancellationToken);
-
-                if (filasAfectadas == 0)
-                {
-                    return Results.NotFound(new
-                    {
-                        mensaje = "El contacto ya no está disponible."
                     });
                 }
 
@@ -895,7 +905,8 @@ if (app.Environment.IsDevelopment())
         })
     .WithName("DesactivarContacto")
     .WithTags("Contactos")
-    .WithOpenApi();
+    .WithOpenApi()
+    .RequireAuthorization();
 }
 
 var medicamentosApi = app.MapGroup("/api/acompanante/mayores/{idMayor:int}/medicamentos")
