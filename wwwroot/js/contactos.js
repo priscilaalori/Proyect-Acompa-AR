@@ -35,6 +35,8 @@
         for (const contacto of contactos) {
             const item = document.createElement("li");
 
+            item.classList.add("contacto-item");
+
             const nombre = document.createElement("h3");
             nombre.textContent =
                 `${contacto.nombre} ${contacto.apellido ?? ""}`.trim();
@@ -44,7 +46,7 @@
                 `${contacto.tipoVinculo} - ${contacto.telefono}`;
 
             const acciones = document.createElement("div");
-            acciones.className = "medicamento-acciones";
+            acciones.className = "contacto-acciones";
 
             const botonEditar = document.createElement("button");
             botonEditar.type = "button";
@@ -57,8 +59,8 @@
 
             const botonBaja = document.createElement("button");
             botonBaja.type = "button";
-            botonBaja.className = "panel-boton";
-            botonBaja.textContent = "Dar de baja";
+            botonBaja.className = "panel-boton boton-eliminar-contacto";
+            botonBaja.textContent = "Eliminar";
 
             botonBaja.addEventListener("click", () => {
                 darDeBajaContacto(contacto);
@@ -209,7 +211,7 @@ async function darDeBajaContacto(contacto) {
     if (guardandoContacto || !idMayorActual) return;
 
     const confirmar = window.confirm(
-        `¿Querés dar de baja a ${contacto.nombre} ${contacto.apellido ?? ""}?`
+        `¿Querés eliminar a ${contacto.nombre} ${contacto.apellido ?? ""} de los contactos de confianza?`
     );
 
     if (!confirmar) return;

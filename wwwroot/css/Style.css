@@ -509,3 +509,63 @@ body {
     color: #c62828;
     font-weight: 600;
 }
+
+/* CONTACTOS DE CONFIANZA */
+
+#nuevoContacto {
+    margin-bottom: 14px;
+}
+
+#contactosMensaje {
+    display: block;
+    margin-bottom: 16px;
+    color: #4b3f72;
+}
+
+#contactos {
+    max-height: 420px;
+    overflow-y: auto;
+    padding-right: 6px;
+}
+
+#contactos .contacto-item {
+    background-color: #faf8ff;
+    border: 1px solid #e6ddf5;
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 14px;
+    list-style: none;
+}
+
+.contacto-item h3 {
+    margin: 0 0 10px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #2f2a4a;
+}
+
+.contacto-item p {
+    margin: 0 0 14px;
+    color: #5a5570;
+    font-size: 14px;
+}
+
+.contacto-acciones {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.contacto-acciones .panel-boton {
+    min-width: 92px;
+}
+
+.contacto-acciones .boton-eliminar-contacto {
+    color: #b23b3b;
+    border: 1px solid #d28a8a;
+    background-color: #fff8f8;
+}
+
+.contacto-acciones .boton-eliminar-contacto:hover {
+    background-color: #ffecec;
+}
