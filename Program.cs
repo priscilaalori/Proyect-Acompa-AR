@@ -25,6 +25,7 @@ builder.Services.AddScoped<UsuarioRepository>();
 builder.Services.AddScoped<MedicamentoRepository>();
 builder.Services.AddScoped<MedicamentoService>();
 builder.Services.AddScoped<RecordatorioRepository>();
+builder.Services.AddScoped<VinculacionRepository>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -1079,6 +1080,187 @@ app.MapPost("/api/recordatorios/{idRecordatorio:int}/cumplimiento", async (int i
     }
 }).RequireAuthorization().WithTags("Recordatorios");
 
+var adminApi = app.MapGroup("/api/admin")
+    .RequireAuthorization()
+    .WithTags("Admin");
+
+adminApi.MapGet("/usuarios", async (
+    HttpContext contexto,
+    VinculacionRepository repositorio,
+    CancellationToken ct) =>
+{
+    if (!contexto.User.IsInRole("ADMIN")) return Results.Forbid();
+
+    if (!repositorio.ConexionConfigurada)
+        return Results.Problem(title: "Falta configurar la conexión con MySQL.", statusCode: 500);
+
+    try
+    {
+        var usuarios = await repositorio.ListarUsuariosAsync(ct);
+        return Results.Ok(usuarios);
+    }
+    catch (MySqlException ex)
+    {
+        app.Logger.LogError(ex, "No se pudieron consultar los usuarios.");
+        return Results.Problem(title: "No se pudieron consultar los usuarios. Intentá nuevamente.", statusCode: 503);
+    }
+});
+
+adminApi.MapGet("/vinculaciones", async (
+    HttpContext contexto,
+    VinculacionRepository repositorio,
+    CancellationToken ct) =>
+{
+    if (!contexto.User.IsInRole("ADMIN")) return Results.Forbid();
+
+    if (!repositorio.ConexionConfigurada)
+        return Results.Problem(title: "Falta configurar la conexión con MySQL.", statusCode: 500);
+
+    try
+    {
+        var vinculaciones = await repositorio.ListarVinculacionesAsync(ct);
+        return Results.Ok(vinculaciones);
+    }
+    catch (MySqlException ex)
+    {
+        app.Logger.LogError(ex, "No se pudieron consultar las vinculaciones.");
+        return Results.Problem(title: "No se pudieron consultar las vinculaciones. Intentá nuevamente.", statusCode: 503);
+    }
+});
+
+adminApi.MapPost("/vinculaciones", async (
+    VinculacionRequest solicitud,
+    HttpContext contexto,
+    VinculacionRepository repositorio,
+    CancellationToken ct) =>
+{
+    if (!contexto.User.IsInRole("ADMIN")) return Results.Forbid();
+
+    var tipoVinculo = solicitud.TipoVinculo?.Trim() ?? "";
+    var estado = solicitud.Estado?.Trim().ToUpperInvariant() ?? "";
+
+    if (solicitud.IdMayor <= 0
+        || solicitud.IdAcompanante <= 0
+        || solicitud.IdMayor == solicitud.IdAcompanante
+        || string.IsNullOrWhiteSpace(tipoVinculo)
+        || tipoVinculo.Length > 50
+        || (estado != "PENDIENTE" && estado != "ACEPTADA" && estado != "RECHAZADA"))
+    {
+        return Results.BadRequest(new
+        {
+            mensaje = "Los datos de la vinculación no son válidos."
+        });
+    }
+
+    if (!repositorio.ConexionConfigurada)
+        return Results.Problem(title: "Falta configurar la conexión con MySQL.", statusCode: 500);
+
+    try
+    {
+        var resultado = await repositorio.RegistrarVinculacionAsync(
+            solicitud.IdMayor, solicitud.IdAcompanante, tipoVinculo, estado, ct);
+
+        if (!resultado.MayorValido)
+            return Results.BadRequest(new { mensaje = "La persona mayor no existe o no está activa." });
+
+        if (!resultado.AcompananteValido)
+            return Results.BadRequest(new { mensaje = "El acompañante no existe o no está activo." });
+
+        if (resultado.Duplicado)
+            return Results.Conflict(new { mensaje = "Esa persona mayor y ese acompañante ya están vinculados." });
+
+        return Results.Json(new
+        {
+            mensaje = "Vinculación creada correctamente.",
+            idVinculacion = resultado.IdVinculacion
+        }, statusCode: 201);
+    }
+    catch (MySqlException ex)
+    {
+        app.Logger.LogError(ex, "No se pudo crear la vinculación.");
+        return Results.Problem(title: "No se pudo crear la vinculación. Intentá nuevamente.", statusCode: 503);
+    }
+});
+
+adminApi.MapPut("/vinculaciones/{idVinculacion:int}", async (
+    int idVinculacion,
+    VinculacionRequest solicitud,
+    HttpContext contexto,
+    VinculacionRepository repositorio,
+    CancellationToken ct) =>
+{
+    if (!contexto.User.IsInRole("ADMIN")) return Results.Forbid();
+
+    var tipoVinculo = solicitud.TipoVinculo?.Trim() ?? "";
+    var estado = solicitud.Estado?.Trim().ToUpperInvariant() ?? "";
+
+    if (idVinculacion <= 0
+        || string.IsNullOrWhiteSpace(tipoVinculo)
+        || tipoVinculo.Length > 50
+        || (estado != "PENDIENTE" && estado != "ACEPTADA" && estado != "RECHAZADA"))
+    {
+        return Results.BadRequest(new
+        {
+            mensaje = "Los datos de la vinculación no son válidos."
+        });
+    }
+
+    if (!repositorio.ConexionConfigurada)
+        return Results.Problem(title: "Falta configurar la conexión con MySQL.", statusCode: 500);
+
+    try
+    {
+        var encontrada = await repositorio.ActualizarVinculacionAsync(
+            idVinculacion, tipoVinculo, estado, ct);
+
+        if (!encontrada)
+            return Results.NotFound(new { mensaje = "La vinculación no existe." });
+
+        return Results.Ok(new
+        {
+            mensaje = "Vinculación actualizada correctamente."
+        });
+    }
+    catch (MySqlException ex)
+    {
+        app.Logger.LogError(ex, "No se pudo actualizar la vinculación.");
+        return Results.Problem(title: "No se pudo actualizar la vinculación. Intentá nuevamente.", statusCode: 503);
+    }
+});
+
+adminApi.MapDelete("/vinculaciones/{idVinculacion:int}", async (
+    int idVinculacion,
+    HttpContext contexto,
+    VinculacionRepository repositorio,
+    CancellationToken ct) =>
+{
+    if (!contexto.User.IsInRole("ADMIN")) return Results.Forbid();
+
+    if (idVinculacion <= 0)
+        return Results.BadRequest(new { mensaje = "El ID de la vinculación no es válido." });
+
+    if (!repositorio.ConexionConfigurada)
+        return Results.Problem(title: "Falta configurar la conexión con MySQL.", statusCode: 500);
+
+    try
+    {
+        var encontrada = await repositorio.EliminarVinculacionAsync(
+            idVinculacion, ct);
+
+        if (!encontrada)
+            return Results.NotFound(new { mensaje = "La vinculación no existe." });
+
+        return Results.Ok(new
+        {
+            mensaje = "Vinculación eliminada correctamente."
+        });
+    }
+    catch (MySqlException ex)
+    {
+        app.Logger.LogError(ex, "No se pudo eliminar la vinculación.");
+        return Results.Problem(title: "No se pudo eliminar la vinculación. Intentá nuevamente.", statusCode: 503);
+    }
+});
 
 app.Run();
 
