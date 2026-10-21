@@ -82,6 +82,8 @@ async function cargar() {
         ]);
         mensaje.textContent = "La información configurada para su cuidado.";
         configuracion.hidden = false;
+
+        cargarContactos(idMayorActual);
     } catch (error) {
         mensaje.textContent = error.message === "Failed to fetch" ? "No pudimos conectar con el servidor." : error.message;
         reintentar.hidden = false;
