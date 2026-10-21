@@ -134,9 +134,44 @@
             <section class="panel-seccion" aria-labelledby="tituloContactos">
                 <h2 id="tituloContactos">📞 Contactos de confianza</h2>
 
-                <p>Contactos registrados de la persona mayor.</p>
+                <button id="nuevoContacto" class="panel-boton" type="button">
+                    Agregar contacto
+                </button>
 
                 <p id="contactosMensaje" role="status" aria-live="polite"></p>
+
+                <form id="contactoForm" class="medicamento-form" hidden>
+                    <h3 id="tituloFormularioContacto">Agregar contacto</h3>
+
+                    <label for="contactoNombre">Nombre</label>
+                    <input id="contactoNombre" type="text"
+                           maxlength="100" required>
+
+                    <label for="contactoApellido">Apellido (opcional)</label>
+                    <input id="contactoApellido" type="text"
+                           maxlength="100">
+
+                    <label for="contactoTelefono">Teléfono</label>
+                    <input id="contactoTelefono" type="tel"
+                           maxlength="30" required
+                           placeholder="Ej.: 1155551234">
+
+                    <label for="contactoVinculo">Tipo de vínculo</label>
+                    <input id="contactoVinculo" type="text"
+                           maxlength="50" required
+                           placeholder="Ej.: Hija, amigo, cuidador">
+
+                    <div class="medicamento-acciones">
+                        <button type="submit" class="panel-boton">
+                            Guardar
+                        </button>
+
+                        <button id="cancelarContacto" type="button"
+                                class="panel-boton">
+                            Cancelar
+                        </button>
+                    </div>
+                </form>
 
                 <ul id="contactos" class="panel-lista"></ul>
             </section>
