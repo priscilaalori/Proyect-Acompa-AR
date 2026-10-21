@@ -1,0 +1,13 @@
+﻿<resources>
+    <style name="Base.Theme.Acompañar" parent="Theme.Material3.Light.NoActionBar">
+        <item name="colorPrimary">#7654B8</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorSecondary">#7654B8</item>
+        <item name="android:colorBackground">#F5F0FF</item>
+        <item name="colorSurface">#FFFFFF</item>
+        <item name="colorOnSurface">#3D3650</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+    <style name="Theme.Acompañar" parent="Base.Theme.Acompañar"/>
+</resources>
