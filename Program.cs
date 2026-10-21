@@ -55,7 +55,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+// Android utiliza HTTP local durante el desarrollo.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseAuthentication();
@@ -177,7 +181,7 @@ if (app.Environment.IsDevelopment())
             using var comando = new MySqlCommand(
                 """
                 SELECT id_usuario, nombre, apellido,
-                       email, tipo_usuario, password
+                       email, tipo_usuario, password, codigo_mayor
                 FROM usuario
                 WHERE email = @email
                   AND estado = TRUE
@@ -237,7 +241,8 @@ if (app.Environment.IsDevelopment())
                     nombre = lector.GetString(1),
                     apellido = lector.GetString(2),
                     email = lector.GetString(3),
-                    tipoUsuario = lector.GetString(4)
+                    tipoUsuario = lector.GetString(4),
+                    codigoMayor = lector.IsDBNull(6) ? null : lector.GetString(6)
                 }
             });
         }

@@ -4,6 +4,8 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Android se compila con Gradle; sus archivos no pertenecen al backend. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);Android/**</DefaultItemExcludes>
     <UserSecretsId>f2468f49-96b9-4511-919c-266c48f55d38</UserSecretsId>
   </PropertyGroup>
 

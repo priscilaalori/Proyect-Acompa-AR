@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/main" android:layout_width="match_parent" android:layout_height="match_parent" android:fillViewport="true" android:background="#F5F0FF">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_horizontal" android:orientation="vertical" android:padding="24dp">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="AcompañAR" android:textColor="#7654B8" android:textSize="32sp" android:textStyle="bold" android:layout_marginTop="24dp" android:accessibilityHeading="true"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Recordar. Acompañar. Proteger." android:textColor="#514966" android:textSize="16sp" android:layout_marginTop="8dp" android:layout_marginBottom="28dp"/>
+        <com.google.android.material.card.MaterialCardView xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="wrap_content" app:cardBackgroundColor="#FFFFFF" app:cardCornerRadius="24dp" app:cardElevation="2dp" app:strokeWidth="0dp">
+            <LinearLayout android:id="@+id/content" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="24dp"/>
+        </com.google.android.material.card.MaterialCardView>
+    </LinearLayout>
+</ScrollView>
