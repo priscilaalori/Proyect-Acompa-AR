@@ -27,7 +27,7 @@
 .medicamento-form { display: grid; gap: 10px; margin: 20px 0; padding: 16px; background: #f5f0ff; border-radius: 12px; }
 .medicamento-form[hidden] { display: none; }
 .medicamento-form input, .medicamento-form select { box-sizing: border-box; width: 100%; min-width: 0; padding: 10px; font: inherit; border: 1px solid #9675d0; border-radius: 8px; background: white; }
-.medicamento-form p, #medicamentoMensaje { line-height: 1.5; margin: 10px 0; }
+.medicamento-form p, #medicamentoMensaje, #vinculacionMensaje { line-height: 1.5; margin: 10px 0; }
 .medicamento-acciones { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
 .panel-boton:disabled { opacity: .6; cursor: wait; }
 @media (max-width: 900px) { .panel-grid { grid-template-columns: 1fr; } }
