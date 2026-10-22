@@ -2,7 +2,7 @@ const mensaje = document.getElementById("panelMensaje");
 const configuracion = document.getElementById("configuracion");
 const reintentar = document.getElementById("reintentar");
 let idMayorActual = null;
-const estados = { PENDIENTE: "Pendiente", ENVIADO: "Enviado", CANCELADO: "Cancelado", PROGRAMADO: "Programado", REALIZADO: "Realizado" };
+const estados = { PENDIENTE: "Pendiente", ENVIADO: "Enviado", CANCELADO: "Cancelado", PROGRAMADO: "Programado", REALIZADO: "Realizado", CUMPLIDO: "Cumplido", NO_CUMPLIDO: "No cumplido" };
 const fecha = valor => new Intl.DateTimeFormat("es-AR").format(new Date(`${valor}T12:00:00`));
 
 function mostrarLista(id, elementos, vacio, describir) {
@@ -68,14 +68,18 @@ async function cargar() {
         }
         document.getElementById("personaMayor").textContent = `Estás acompañando a ${datos.mayor.nombre} ${datos.mayor.apellido}.`;
         idMayorActual = datos.mayor.idUsuario;
-        mostrarLista("medicamentos", datos.medicamentos, "No hay medicamentos activos configurados.", m => [
+        const describirMedicamento = m => [
             m.nombre, `Dosis: ${m.dosis}`, `${m.frecuencia} · Horario: ${m.horario}`,
             `Desde ${fecha(m.fechaInicio)}${m.fechaFin ? ` hasta ${fecha(m.fechaFin)}` : " · Sin fecha de finalización"}`
-        ]);
+        ];
+        mostrarLista("medicamentos", datos.medicamentos.filter(m => !m.soloLectura),
+            "No hay medicamentos activos configurados.", describirMedicamento);
+        mostrarLista("historialMedicamentos", datos.medicamentos.filter(m => m.soloLectura),
+            "Todavía no hay tomas únicas respondidas.", m => [...describirMedicamento(m), "Finalizado · Solo consulta"]);
         mostrarLista("recordatorios", datos.recordatorios, "No hay recordatorios configurados.", r => [
             r.nombre, r.tipo, `${fecha(r.fecha)} · ${r.hora}`, `Estado: ${estados[r.estado] || r.estado}`
         ]);
-        buscarRecordatorios();
+        await buscarRecordatorios();
         mostrarLista("turnos", datos.turnos, "No hay turnos médicos configurados.", t => [
             t.especialidad, `Profesional: ${t.medico}`, `${fecha(t.fecha)} · ${t.hora}`,
             t.direccion, t.motivo ? `Motivo: ${t.motivo}` : null, `Estado: ${estados[t.estado] || t.estado}`
@@ -134,6 +138,7 @@ function actualizarFrecuencia() {
 
 function abrirFormulario(medicamento = null) {
     if (guardando) return;
+    if (medicamento?.soloLectura) { avisoMedicamento.textContent = "Este medicamento quedó en el historial y no se puede modificar."; return; }
     formulario.reset();
     idEditando = medicamento?.idMedicamento ?? null;
     document.getElementById("tituloFormulario").textContent = medicamento ? "Editar medicamento" : "Agregar medicamento";
@@ -157,6 +162,7 @@ function abrirFormulario(medicamento = null) {
 }
 
 function agregarAcciones(item, medicamento) {
+    if (medicamento.soloLectura) return;
     const acciones = document.createElement("div");
     acciones.className = "medicamento-acciones";
     for (const [texto, accion] of [
@@ -228,6 +234,7 @@ async function modificarMedicamento(metodo, id, datos) {
 }
 
 async function darDeBaja(medicamento) {
+    if (medicamento.soloLectura) return;
     if (guardando || !window.confirm(`¿Dar de baja ${medicamento.nombre}? Se cancelarán sus recordatorios pendientes y se conservará el historial.`)) return;
     await modificarMedicamento("DELETE", medicamento.idMedicamento);
 }
@@ -425,9 +432,8 @@ async function buscarRecordatorios() {
         const respuesta = await fetch(`/api/acompanante/mayores/${idMayorActual}/recordatorios?desde=${recordatoriosDesde.value}&hasta=${recordatoriosHasta.value}`, { cache: "no-store" });
         const datos = await respuesta.json().catch(() => ({}));
         if (!respuesta.ok) throw new Error(datos.mensaje || "No pudimos consultar los recordatorios.");
-        mostrarLista("recordatorios", datos, "No hay recordatorios pendientes en esas fechas.", r => [
-            r.nombre, r.tipo, `${fecha(r.fecha)} · ${r.hora}`, `Estado: ${estados[r.estado] || r.estado}`,
-            r.cumplimiento ? `Cumplimiento: ${r.cumplimiento === "CUMPLIDO" ? "Cumplido" : "No cumplido"}` : null
+        mostrarLista("recordatorios", datos, "No hay recordatorios en esas fechas.", r => [
+            r.nombre, r.tipo, `${fecha(r.fecha)} · ${r.hora}`, `Estado: ${estados[r.estado] || r.estado}`
         ]);
     } catch (error) {
         mensajeRecordatorios.textContent = error.message;
@@ -465,7 +471,7 @@ async function registrarCumplimiento(recordatorio, estado, texto) {
         });
         const datos = await respuesta.json().catch(() => ({}));
         if (!respuesta.ok) throw new Error(datos.mensaje || "No pudimos registrar el cumplimiento.");
-        await buscarRecordatorios();
+        await cargar();
         mensajeRecordatorios.textContent = datos.mensaje;
     } catch (error) {
         mensajeRecordatorios.textContent = error.message;
