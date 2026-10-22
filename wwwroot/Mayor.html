@@ -1,0 +1,44 @@
+﻿<!
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi espacio | AcompañAR</title>
+    <link rel="stylesheet" href="css/Style.css">
+</head>
+<body>
+    <main class="panel-mayor">
+        <header class="encabezado-mayor">
+            <h1>AcompañAR</h1>
+            <p>Tu espacio personal</p>
+            <button type="button" id="btnCerrarSesion" class="boton-salir-mayor">
+                Cerrar sesión
+            </button>
+        </header>
+
+        <section class="bienvenida-mayor">
+            <h2>¡Hola!</h2>
+            <p>Acá podés consultar tu información.</p>
+        </section>
+
+        <section class="seccion-mayor">
+            <h2>Mis turnos médicos</h2>
+            <p>Acá vas a poder consultar tus próximos turnos.</p>
+        </section>
+
+        <section class="seccion-mayor">
+            <h2>Mis recordatorios</h2>
+            <p>Acá vas a poder consultar tus recordatorios.</p>
+        </section>
+
+        <section class="seccion-mayor">
+            <h2>Mis contactos importantes</h2>
+            <p>Acá vas a poder consultar tus contactos de confianza.</p>
+        </section>
+    </main>
+    <script>document.getElementById("btnCerrarSesion").addEventListener("click", () => {
+        window.location.replace("login.html");
+    });</script>
+</body>
+</html>
