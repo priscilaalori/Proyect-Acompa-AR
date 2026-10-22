@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AcompañAR - Administración</title>
+    <link rel="stylesheet" href="css/Style.css">
+</head>
+<body>
+    <main class="panel-container">
+        <header class="panel-header">
+            <div class="logo"><h1>💜 AcompañAR</h1><p>Recordar. Acompañar. Proteger.</p></div>
+            <button id="cerrarSesion" class="panel-boton">Cerrar sesión</button>
+        </header>
+        <section class="panel-bienvenida">
+            <h2 id="saludo">Panel de administración</h2>
+            <p>Desde acá gestionás las vinculaciones entre las personas mayores y sus acompañantes.</p>
+            <p id="panelMensaje" role="status" aria-live="polite">Cargando información…</p>
+            <button id="reintentar" class="panel-boton" hidden>Reintentar</button>
+        </section>
+        <section class="panel-seccion" aria-labelledby="tituloVinculaciones">
+            <h2 id="tituloVinculaciones">🔗 Vinculaciones</h2>
+            <button id="nuevaVinculacion" class="panel-boton" type="button">Agregar vinculación</button>
+            <p id="vinculacionMensaje" role="status" aria-live="polite"></p>
+            <form id="vinculacionForm" class="medicamento-form" hidden>
+                <h3 id="tituloFormularioVinculacion">Agregar vinculación</h3>
+                <label for="vinMayor">Persona mayor</label>
+                <select id="vinMayor" required></select>
+                <label for="vinAcompanante">Acompañante</label>
+                <select id="vinAcompanante" required></select>
+                <label for="vinTipo">Tipo de vínculo</label>
+                <input id="vinTipo" required maxlength="50" autocomplete="off" placeholder="Ej.: Hija, Nieto">
+                <label for="vinEstado">Estado</label>
+                <select id="vinEstado" required>
+                    <option value="PENDIENTE">Pendiente</option>
+                    <option value="ACEPTADA">Aceptada</option>
+                    <option value="RECHAZADA">Rechazada</option>
+                </select>
+                <div class="medicamento-acciones">
+                    <button type="submit" class="panel-boton">Guardar</button>
+                    <button id="cancelarVinculacion" type="button" class="panel-boton">Cancelar</button>
+                </div>
+            </form>
+            <ul id="vinculaciones" class="panel-lista"></ul>
+        </section>
+    </main>
+    <script src="js/admin.js"></script>
+</body>
+</html>
