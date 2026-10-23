@@ -15,25 +15,12 @@
         <section class="panel-bienvenida">
             <h2 id="saludo">Mi acompañamiento</h2>
             <p id="personaMayor">Consultando tu adulto mayor vinculado…</p>
+            <p id="selectorMayor" hidden>
+                <label for="mayorElegido">Estás acompañando a</label>
+                <select id="mayorElegido"></select>
+            </p>
             <p id="panelMensaje" role="status" aria-live="polite">Cargando información…</p>
             <button id="reintentar" class="panel-boton" hidden>Reintentar</button>
-        </section>
-        <section id="vinculacion" class="panel-seccion panel-vinculacion" aria-labelledby="tituloVinculacion" hidden>
-            <h2 id="tituloVinculacion">🔗 Vincular adulto mayor</h2>
-            <p>Pedile su código de vinculación. Lo encuentra en la app, en «Compartir mi código».</p>
-            <form id="vinculacionForm" class="medicamento-form">
-                <label for="vinculacionCodigo">Código de vinculación</label>
-                <input id="vinculacionCodigo" required maxlength="10" autocomplete="off" placeholder="Ej.: MAY-000123">
-                <label for="vinculacionTipo">Tipo de vínculo</label>
-                <select id="vinculacionTipo" required>
-                    <option value="Familiar">Familiar</option>
-                    <option value="Cuidador">Cuidador</option>
-                </select>
-                <button type="submit" class="panel-boton">Enviar solicitud</button>
-            </form>
-            <p id="vinculacionMensaje" role="status" aria-live="polite"></p>
-            <h3>Solicitudes enviadas</h3>
-            <ul id="solicitudes" class="panel-lista"></ul>
         </section>
         <div id="configuracion" class="panel-grid" hidden>
             <section class="panel-seccion" aria-labelledby="tituloMedicamentos">
@@ -196,6 +183,23 @@
                 <ul id="contactos" class="panel-lista"></ul>
             </section>
         </div>
+        <section id="vinculacion" class="panel-seccion panel-vinculacion" aria-labelledby="tituloVinculacion" hidden>
+            <h2 id="tituloVinculacion">🔗 Vincular adulto mayor</h2>
+            <p>Pedile su código de vinculación. Lo encuentra en la app, en «Compartir mi código».</p>
+            <form id="vinculacionForm" class="medicamento-form">
+                <label for="vinculacionCodigo">Código de vinculación</label>
+                <input id="vinculacionCodigo" required maxlength="10" autocomplete="off" placeholder="Ej.: MAY-000123">
+                <label for="vinculacionTipo">Tipo de vínculo</label>
+                <select id="vinculacionTipo" required>
+                    <option value="Familiar">Familiar</option>
+                    <option value="Cuidador">Cuidador</option>
+                </select>
+                <button type="submit" class="panel-boton">Enviar solicitud</button>
+            </form>
+            <p id="vinculacionMensaje" role="status" aria-live="polite"></p>
+            <h3>Solicitudes enviadas</h3>
+            <ul id="solicitudes" class="panel-lista"></ul>
+        </section>
     </main>
     <script src="js/acompanante.js"></script>
     <script src="js/contactos.js"></script>
