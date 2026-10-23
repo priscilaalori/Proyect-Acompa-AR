@@ -53,7 +53,7 @@ async function cargar() {
     reintentar.hidden = true;
     mensaje.textContent = "Cargando información…";
     try {
-        const respuesta = await fetch("/api/acompanante/panel", { cache: "no-store" });
+        const respuesta = await fetch(`/api/acompanante/panel${idMayorActual ? `?idMayor=${idMayorActual}` : ""}`, { cache: "no-store" });
         if (respuesta.status === 401) {
             window.location.replace("login.html");
             return;
@@ -61,15 +61,20 @@ async function cargar() {
         const datos = await respuesta.json();
         if (!respuesta.ok) throw new Error(datos.mensaje || datos.title || "No pudimos cargar la información.");
         document.getElementById("saludo").textContent = `¡Hola, ${datos.acompanante}!`;
+        document.getElementById("vinculacion").hidden = false;
+        await cargarSolicitudes();
         if (!datos.mayor) {
             document.getElementById("personaMayor").textContent = "Todavía no tenés un adulto mayor con una vinculación aceptada.";
             mensaje.textContent = "Cuando tengas una vinculación aceptada, podrás ver aquí su información.";
-            document.getElementById("vinculacion").hidden = false;
-            await cargarSolicitudes();
             return;
         }
         document.getElementById("personaMayor").textContent = `Estás acompañando a ${datos.mayor.nombre} ${datos.mayor.apellido}.`;
         idMayorActual = datos.mayor.idUsuario;
+        const selector = document.getElementById("mayorElegido");
+        selector.replaceChildren(...datos.mayores.map(m => new Option(`${m.nombre} ${m.apellido}`, m.idUsuario)));
+        selector.value = idMayorActual;
+        document.getElementById("selectorMayor").hidden = datos.mayores.length < 2;
+        document.getElementById("personaMayor").hidden = datos.mayores.length > 1;
         const describirMedicamento = m => [
             m.nombre, `Dosis: ${m.dosis}`, `${m.frecuencia} · Horario: ${m.horario}`,
             `Desde ${fecha(m.fechaInicio)}${m.fechaFin ? ` hasta ${fecha(m.fechaFin)}` : " · Sin fecha de finalización"}`
@@ -136,6 +141,12 @@ document.getElementById("vinculacionForm").addEventListener("submit", async even
     } finally {
         boton.disabled = false;
     }
+});
+
+document.getElementById("mayorElegido").addEventListener("change", event => {
+    idMayorActual = Number(event.target.value);
+    for (const id of ["medicamentoForm", "turnoForm", "contactoForm"]) document.getElementById(id).hidden = true;
+    cargar();
 });
 
 document.getElementById("cerrarSesion").addEventListener("click", async event => {

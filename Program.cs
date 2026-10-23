@@ -653,22 +653,30 @@ if (app.Environment.IsDevelopment())
                 WHERE v.id_acompanante = @id AND v.estado = 'ACEPTADA'
                   AND u.estado = TRUE AND u.tipo_usuario = 'MAYOR'
                   AND a.estado = TRUE AND a.tipo_usuario = 'ACOMPANANTE'
-                ORDER BY v.fecha_vinculacion, v.id_vinculacion
-                LIMIT 1;
+                ORDER BY v.fecha_vinculacion, v.id_vinculacion;
                 """, conexion);
             comando.Parameters.Add("@id", MySqlDbType.Int32).Value =
                 int.Parse(contexto.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-            int idMayor;
-            object mayor;
+            // Si no viene ?idMayor= o no es una de sus personas, se muestra la vinculación más vieja.
+            int.TryParse(contexto.Request.Query["idMayor"], out var idElegido);
+            int idMayor = 0;
+            object? mayor = null;
+            var mayores = new List<object>();
             using (var lector = await comando.ExecuteReaderAsync(cancellationToken))
-            {
-                if (!await lector.ReadAsync(cancellationToken))
-                    return Results.Ok(new { acompanante = contexto.User.Identity!.Name, mayor = (object?)null,
-                        medicamentos = Array.Empty<object>(), recordatorios = Array.Empty<object>(), turnos = Array.Empty<object>() });
-                idMayor = lector.GetInt32(0);
-                mayor = new { idUsuario = idMayor, nombre = lector.GetString(1), apellido = lector.GetString(2) };
-            }
+                while (await lector.ReadAsync(cancellationToken))
+                {
+                    var actual = new { idUsuario = lector.GetInt32(0), nombre = lector.GetString(1), apellido = lector.GetString(2) };
+                    mayores.Add(actual);
+                    if (mayor == null || actual.idUsuario == idElegido)
+                    {
+                        idMayor = actual.idUsuario;
+                        mayor = actual;
+                    }
+                }
+            if (mayor == null)
+                return Results.Ok(new { acompanante = contexto.User.Identity!.Name, mayor, mayores,
+                    medicamentos = Array.Empty<object>(), recordatorios = Array.Empty<object>(), turnos = Array.Empty<object>() });
 
             // Las tres consultas se limitan al adulto obtenido de la vinculación del usuario autenticado.
             comando.Parameters.Clear();
@@ -720,7 +728,7 @@ if (app.Environment.IsDevelopment())
                     recordatorios.Add(new { nombre = lector.GetString(0), tipo = lector.GetString(1),
                         fecha = lector.GetString(2), hora = lector.GetString(3), estado = lector.GetString(4) });
 
-            return Results.Ok(new { acompanante = contexto.User.Identity!.Name, mayor, medicamentos, recordatorios, turnos });
+            return Results.Ok(new { acompanante = contexto.User.Identity!.Name, mayor, mayores, medicamentos, recordatorios, turnos });
         }
         catch (MySqlException ex)
         {
