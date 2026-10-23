@@ -28,6 +28,7 @@
                     <label for="mayorElegido">Cambiar de persona</label>
                     <select id="mayorElegido"></select>
                 </p>
+                <button type="button" class="panel-nav" data-seccion="alertas"><span aria-hidden="true">⚠️</span> Alertas <span id="cantidadAlertas" class="panel-contador panel-contador-alerta"></span></button>
                 <button type="button" class="panel-nav" data-seccion="recordatorios"><span aria-hidden="true">🔔</span> Recordatorios <span id="cantidadRecordatorios" class="panel-contador"></span></button>
                 <button type="button" class="panel-nav" data-seccion="medicamentos"><span aria-hidden="true">💊</span> Medicamentos <span id="cantidadMedicamentos" class="panel-contador"></span></button>
                 <button type="button" class="panel-nav" data-seccion="turnos"><span aria-hidden="true">📅</span> Turnos <span id="cantidadTurnos" class="panel-contador"></span></button>
@@ -35,9 +36,31 @@
                 <button type="button" class="panel-nav" data-seccion="vinculacion"><span aria-hidden="true">🔗</span> Vincular</button>
             </nav>
             <div class="panel-contenido">
+                <div id="bannerAlertas" class="panel-banner" role="status" hidden>
+                    <p><strong>Alertas:</strong> <span id="textoAlertas"></span>.</p>
+                    <button id="verAlertas" type="button" class="panel-boton">Ver alertas</button>
+                </div>
                 <p id="panelMensaje" role="status" aria-live="polite">Cargando información…</p>
                 <button id="reintentar" class="panel-boton" hidden>Reintentar</button>
                 <div id="configuracion" hidden>
+                    <section class="panel-seccion" data-seccion="alertas" aria-labelledby="tituloAlertas">
+                        <div class="panel-encabezado">
+                            <div>
+                                <h2 id="tituloAlertas">⚠️ Alertas</h2>
+                                <p class="panel-bajada">Lo que no confirmó a tiempo o no cumplió, en las últimas 24 horas.</p>
+                            </div>
+                        </div>
+                        <p class="panel-espera">
+                            <label for="minutosEspera">Avisarme si no confirma en</label>
+                            <select id="minutosEspera">
+                                <option value="15">15 minutos</option>
+                                <option value="20">20 minutos</option>
+                                <option value="30">30 minutos</option>
+                                <option value="60">1 hora</option>
+                            </select>
+                        </p>
+                        <ul id="alertas" class="panel-lista"></ul>
+                    </section>
                     <section class="panel-seccion" data-seccion="recordatorios" aria-labelledby="tituloRecordatorios">
                         <div class="panel-encabezado">
                             <div>
