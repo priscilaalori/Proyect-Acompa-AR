@@ -2,7 +2,7 @@ const mensaje = document.getElementById("panelMensaje");
 const configuracion = document.getElementById("configuracion");
 const reintentar = document.getElementById("reintentar");
 let idMayorActual = null;
-const estados = { PENDIENTE: "Pendiente", ENVIADO: "Enviado", CANCELADO: "Cancelado", PROGRAMADO: "Programado", REALIZADO: "Realizado", CUMPLIDO: "Cumplido", NO_CUMPLIDO: "No cumplido" };
+const estados = { PENDIENTE: "Pendiente", ENVIADO: "Enviado", CANCELADO: "Cancelado", PROGRAMADO: "Programado", REALIZADO: "Realizado", CUMPLIDO: "Cumplido", NO_CUMPLIDO: "No cumplido", ACEPTADA: "Aceptada", RECHAZADA: "Rechazada" };
 const fecha = valor => new Intl.DateTimeFormat("es-AR").format(new Date(`${valor}T12:00:00`));
 
 function mostrarLista(id, elementos, vacio, describir) {
@@ -64,6 +64,8 @@ async function cargar() {
         if (!datos.mayor) {
             document.getElementById("personaMayor").textContent = "Todavía no tenés un adulto mayor con una vinculación aceptada.";
             mensaje.textContent = "Cuando tengas una vinculación aceptada, podrás ver aquí su información.";
+            document.getElementById("vinculacion").hidden = false;
+            await cargarSolicitudes();
             return;
         }
         document.getElementById("personaMayor").textContent = `Estás acompañando a ${datos.mayor.nombre} ${datos.mayor.apellido}.`;
@@ -93,6 +95,48 @@ async function cargar() {
         reintentar.hidden = false;
     }
 }
+
+async function cargarSolicitudes() {
+    const aviso = document.getElementById("vinculacionMensaje");
+    try {
+        const respuesta = await fetch("/api/acompanante/solicitudes", { cache: "no-store" });
+        const datos = await respuesta.json();
+        if (!respuesta.ok) throw new Error(datos.mensaje || datos.title || "No pudimos cargar tus solicitudes.");
+        mostrarLista("solicitudes", datos, "Todavía no enviaste solicitudes.", s => [
+            `${s.nombre} ${s.apellido}`, `Vínculo: ${s.tipoVinculo}`,
+            `Estado: ${estados[s.estado] || s.estado}`, `Enviada el ${fecha(s.fecha)}`
+        ]);
+    } catch (error) {
+        aviso.textContent = error.message === "Failed to fetch" ? "No pudimos conectar con el servidor." : error.message;
+    }
+}
+
+document.getElementById("vinculacionForm").addEventListener("submit", async event => {
+    event.preventDefault();
+    const aviso = document.getElementById("vinculacionMensaje");
+    const boton = event.submitter;
+    boton.disabled = true;
+    try {
+        const respuesta = await fetch("/api/acompanante/solicitudes", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                codigo: document.getElementById("vinculacionCodigo").value,
+                tipoVinculo: document.getElementById("vinculacionTipo").value
+            })
+        });
+        const datos = await respuesta.json().catch(() => ({}));
+        aviso.textContent = datos.mensaje || datos.title || "No pudimos enviar la solicitud.";
+        if (respuesta.ok) {
+            event.target.reset();
+            await cargarSolicitudes();
+        }
+    } catch {
+        aviso.textContent = "No pudimos conectar con el servidor.";
+    } finally {
+        boton.disabled = false;
+    }
+});
 
 document.getElementById("cerrarSesion").addEventListener("click", async event => {
     event.target.disabled = true;

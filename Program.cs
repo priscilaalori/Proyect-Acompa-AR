@@ -1157,6 +1157,77 @@ app.MapPost("/api/mayor/solicitudes/{idVinculacion:int}/respuesta", async (
     }
 }).RequireAuthorization().WithTags("Mayor");
 
+app.MapGet("/api/acompanante/solicitudes", async (HttpContext contexto, IConfiguration config, CancellationToken ct) =>
+{
+    if (!contexto.User.IsInRole("ACOMPANANTE")) return Results.Forbid();
+    try
+    {
+        using var conexion = new MySqlConnection(config.GetConnectionString("MySql"));
+        await conexion.OpenAsync(ct);
+        using var comando = new MySqlCommand("""
+            SELECT m.nombre, m.apellido, v.tipo_vinculo, v.estado, DATE_FORMAT(v.fecha_vinculacion, '%Y-%m-%d')
+            FROM vinculacion v JOIN usuario m ON m.id_usuario = v.id_mayor
+            WHERE v.id_acompanante = @acompanante
+            ORDER BY v.fecha_vinculacion DESC, v.id_vinculacion DESC
+            """, conexion);
+        comando.Parameters.AddWithValue("@acompanante", int.Parse(contexto.User.FindFirstValue(ClaimTypes.NameIdentifier)!));
+        var solicitudes = new List<object>();
+        using var lector = await comando.ExecuteReaderAsync(ct);
+        while (await lector.ReadAsync(ct))
+            solicitudes.Add(new { nombre = lector.GetString(0), apellido = lector.GetString(1), tipoVinculo = lector.GetString(2),
+                estado = lector.GetString(3), fecha = lector.GetString(4) });
+        return Results.Ok(solicitudes);
+    }
+    catch (MySqlException ex)
+    {
+        app.Logger.LogError(ex, "No se pudieron cargar las solicitudes del acompañante.");
+        return Results.Problem(title: "No pudimos cargar tus solicitudes. Intentá nuevamente.", statusCode: 503);
+    }
+}).RequireAuthorization().WithTags("Acompañante");
+
+app.MapPost("/api/acompanante/solicitudes", async (EnviarSolicitudRequest solicitud, HttpContext contexto,
+    IConfiguration config, CancellationToken ct) =>
+{
+    if (!contexto.User.IsInRole("ACOMPANANTE")) return Results.Forbid();
+    var codigo = solicitud.Codigo?.Trim().ToUpperInvariant();
+    if (string.IsNullOrEmpty(codigo))
+        return Results.BadRequest(new { mensaje = "Ingresá el código de vinculación." });
+    if (solicitud.TipoVinculo is not ("Familiar" or "Cuidador"))
+        return Results.BadRequest(new { mensaje = "Elegí el tipo de vínculo." });
+    try
+    {
+        using var conexion = new MySqlConnection(config.GetConnectionString("MySql"));
+        await conexion.OpenAsync(ct);
+        using var comando = new MySqlCommand(
+            "SELECT id_usuario FROM usuario WHERE codigo_mayor = @codigo AND estado = TRUE AND tipo_usuario = 'MAYOR'", conexion);
+        comando.Parameters.AddWithValue("@codigo", codigo);
+        comando.Parameters.AddWithValue("@acompanante", int.Parse(contexto.User.FindFirstValue(ClaimTypes.NameIdentifier)!));
+        comando.Parameters.AddWithValue("@tipo", solicitud.TipoVinculo);
+        var idMayor = await comando.ExecuteScalarAsync(ct);
+        if (idMayor is null)
+            return Results.NotFound(new { mensaje = "No encontramos un adulto mayor con ese código." });
+        comando.Parameters.AddWithValue("@mayor", idMayor);
+
+        comando.CommandText = "SELECT estado FROM vinculacion WHERE id_mayor = @mayor AND id_acompanante = @acompanante";
+        var estado = await comando.ExecuteScalarAsync(ct) as string;
+        if (estado == "PENDIENTE")
+            return Results.Conflict(new { mensaje = "Ya enviaste una solicitud a esta persona. Esperá su respuesta." });
+        if (estado == "ACEPTADA")
+            return Results.Conflict(new { mensaje = "Ya acompañás a esta persona." });
+
+        comando.CommandText = estado == "RECHAZADA"
+            ? "UPDATE vinculacion SET estado = 'PENDIENTE', tipo_vinculo = @tipo, fecha_vinculacion = NOW() WHERE id_mayor = @mayor AND id_acompanante = @acompanante"
+            : "INSERT INTO vinculacion (id_mayor, id_acompanante, tipo_vinculo) VALUES (@mayor, @acompanante, @tipo)";
+        await comando.ExecuteNonQueryAsync(ct);
+        return Results.Ok(new { mensaje = "Solicitud enviada. Cuando la acepte, vas a poder ver su información." });
+    }
+    catch (MySqlException ex)
+    {
+        app.Logger.LogError(ex, "No se pudo enviar la solicitud de vinculación.");
+        return Results.Problem(title: "No pudimos enviar la solicitud. Intentá nuevamente.", statusCode: 503);
+    }
+}).RequireAuthorization().WithTags("Acompañante");
+
 app.MapGet("/api/acompanante/mayores/{idMayor:int}/recordatorios", async (int idMayor, DateOnly? desde, DateOnly? hasta,
     HttpContext contexto, RecordatorioRepository repositorio, CancellationToken ct) =>
 {
