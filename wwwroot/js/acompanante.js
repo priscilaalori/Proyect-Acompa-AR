@@ -20,6 +20,7 @@ function mostrarSeccion(nombre) {
         }
     }
     cerrarMenu();
+    mostrarAlertas();
 }
 
 function abrirMenu() {
@@ -126,6 +127,8 @@ async function cargar() {
             t.direccion, t.motivo ? `Motivo: ${t.motivo}` : null, `Estado: ${estados[t.estado] || t.estado}`
         ]);
         document.getElementById("cantidadTurnos").textContent = datos.turnos.filter(t => t.estado === "PROGRAMADO").length;
+        turnosAlertas = datos.turnos;
+        await cargarAlertas();
         const proximos = datos.recordatorios.filter(r => r.estado !== "CANCELADO");
         document.getElementById("cantidadHoy").textContent = proximos.filter(r => r.fecha === diaLocal(0)).length;
         document.getElementById("cantidadManana").textContent = proximos.filter(r => r.fecha === diaLocal(1)).length;
@@ -666,3 +669,102 @@ async function registrarCumplimiento(recordatorio, estado, texto) {
         mensajeRecordatorios.textContent = error.message;
     }
 }
+
+// Alertas: lo que no confirmó a tiempo o no cumplió en las últimas 24 horas.
+const minutosEspera = document.getElementById("minutosEspera");
+minutosEspera.value = localStorage.getItem("minutosAlerta") || "20";
+let recordatoriosAlertas = [];
+let turnosAlertas = [];
+
+const alertasVistas = () => JSON.parse(localStorage.getItem("alertasVistas") || "[]");
+
+async function cargarAlertas() {
+    if (!idMayorActual) {
+        recordatoriosAlertas = [];
+        mostrarAlertas();
+        return;
+    }
+    try {
+        const respuesta = await fetch(`/api/acompanante/mayores/${idMayorActual}/recordatorios?desde=${diaLocal(-1)}&hasta=${diaLocal(0)}`, { cache: "no-store" });
+        if (!respuesta.ok) return;
+        recordatoriosAlertas = await respuesta.json();
+        mostrarAlertas();
+    } catch {
+        // Si falla la consulta no mostramos nada nuevo, para no romper el panel.
+    }
+}
+
+function mostrarAlertas() {
+    const vistas = alertasVistas();
+    const minutos = Number(minutosEspera.value || 20);
+    const ahora = new Date();
+    const limite = new Date(ahora.getTime() - 24 * 60 * 60 * 1000);
+    const tomas = [];
+    const turnos = [];
+    for (const r of recordatoriosAlertas) {
+        if (r.tipo !== "Medicamento" || vistas.includes("r" + r.idRecordatorio)) continue;
+        const cuando = new Date(`${r.fecha}T${r.hora}:00`);
+        if (cuando < limite || cuando > ahora) continue;
+        let texto = "";
+        if (r.cumplimiento === "NO_CUMPLIDO") {
+            texto = `No tomó ${r.nombre} de las ${r.hora}.`;
+        } else if (!r.cumplimiento && ahora - cuando >= minutos * 60 * 1000) {
+            texto = `No confirmó la toma de ${r.nombre} de las ${r.hora}.`;
+        }
+        if (texto) tomas.push({ clave: "r" + r.idRecordatorio, cuando, hora: r.hora, texto });
+    }
+    for (const t of turnosAlertas) {
+        if (t.estado !== "PROGRAMADO" || vistas.includes("t" + t.idTurno)) continue;
+        const cuando = new Date(`${t.fecha}T${t.hora}:00`);
+        if (cuando < limite || cuando > ahora || ahora - cuando < minutos * 60 * 1000) continue;
+        turnos.push({ clave: "t" + t.idTurno, cuando, hora: t.hora, texto: `No marcó que fue al turno de ${t.especialidad} de las ${t.hora}.` });
+    }
+    // Primero las tomas y después los turnos, cada grupo de la más vieja a la más nueva.
+    const alertas = [
+        ...tomas.sort((a, b) => a.cuando - b.cuando),
+        ...turnos.sort((a, b) => a.cuando - b.cuando)
+    ];
+    const lista = document.getElementById("alertas");
+    lista.replaceChildren();
+    for (const alerta of alertas) {
+        const item = document.createElement("li");
+        item.className = "panel-alerta";
+        const detalle = document.createElement("p");
+        const texto = document.createElement("strong");
+        texto.textContent = alerta.texto;
+        const cuando = document.createElement("small");
+        const dia = alerta.cuando.toLocaleDateString("en-CA") === diaLocal(0) ? "Hoy" : "Ayer";
+        cuando.textContent = `${dia} · ${alerta.hora}`;
+        detalle.append(texto, cuando);
+        const boton = document.createElement("button");
+        boton.type = "button";
+        boton.className = "panel-boton";
+        boton.textContent = "Entendido";
+        boton.addEventListener("click", () => {
+            localStorage.setItem("alertasVistas", JSON.stringify([...vistas, alerta.clave]));
+            mostrarAlertas();
+        });
+        item.append(detalle, boton);
+        lista.append(item);
+    }
+    if (!alertas.length) {
+        const vacio = document.createElement("li");
+        vacio.className = "panel-vacio";
+        vacio.textContent = "Está todo al día.";
+        lista.append(vacio);
+    }
+    document.getElementById("cantidadAlertas").textContent = alertas.length || "";
+    document.getElementById("textoAlertas").textContent = alertas.length === 1 ? "1 sin revisar" : `${alertas.length} sin revisar`;
+    document.getElementById("bannerAlertas").hidden = !alertas.length || seccionActual === "alertas";
+}
+
+minutosEspera.addEventListener("change", () => {
+    localStorage.setItem("minutosAlerta", minutosEspera.value);
+    mostrarAlertas();
+});
+
+document.getElementById("verAlertas").addEventListener("click", () => mostrarSeccion("alertas"));
+
+setInterval(() => {
+    if (idMayorActual) cargarAlertas();
+}, 60000);

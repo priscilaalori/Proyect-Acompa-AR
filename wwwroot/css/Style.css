@@ -986,6 +986,87 @@ body {
     color: #8f310f;
 }
 
+/* Alertas */
+
+.panel-acompanante .panel-contador-alerta:not(:empty) {
+    background-color: #C2410C;
+    color: #fff;
+}
+
+.panel-acompanante .panel-nav[aria-current="page"] .panel-contador-alerta:not(:empty) {
+    background-color: #C2410C;
+}
+
+.panel-acompanante .panel-banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding: 12px 12px 12px 18px;
+    background-color: #fde6d6;
+    color: #8f310f;
+    border-radius: 16px;
+}
+
+.panel-acompanante .panel-banner p {
+    line-height: 1.5;
+}
+
+.panel-acompanante .panel-banner .panel-boton {
+    padding: 8px 14px;
+    border-color: #9a3412;
+    color: #9a3412;
+    font-size: 15px;
+}
+
+.panel-acompanante .panel-alerta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+}
+
+.panel-acompanante .panel-alerta p {
+    min-width: 0;
+    color: #3d3650;
+    line-height: 1.5;
+}
+
+.panel-acompanante .panel-alerta small {
+    display: block;
+    margin-top: 2px;
+    color: #5e5672;
+    font-size: 14px;
+}
+
+.panel-acompanante .panel-alerta .panel-boton {
+    flex: none;
+    padding: 8px 14px;
+    font-size: 15px;
+}
+
+.panel-acompanante .panel-espera {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding: 12px 14px;
+    background-color: #f5f0ff;
+    border-radius: 12px;
+    color: #514966;
+}
+
+.panel-acompanante #minutosEspera {
+    padding: 8px 40px 8px 12px;
+    font: inherit;
+    border: 1px solid #9675d0;
+    border-radius: 8px;
+    color: #3d3650;
+}
+
 /* Formularios como ventana */
 
 .panel-acompanante .panel-modal:not([hidden]) {
