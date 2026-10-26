@@ -19,6 +19,9 @@
 .panel-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; align-items: start; }
 .panel-seccion { padding: 24px; background: white; border-radius: 24px; box-shadow: 0 8px 30px rgba(90,70,120,.12); }
 .panel-seccion h2 { font-size: 22px; color: #7654b8; margin-bottom: 20px; }
+.panel-vinculacion { max-width: 640px; }
+#configuracion { margin-bottom: 24px; }
+#mayorElegido { padding: 8px; font: inherit; font-weight: bold; color: #3d3650; border: 1px solid #9675d0; border-radius: 8px; background: white; }
 .panel-lista { list-style: none; }
 .panel-lista li { padding: 18px 0; border-top: 1px solid #eee5ff; overflow-wrap: anywhere; }
 .panel-lista h3 { font-size: 18px; margin-bottom: 10px; }
@@ -724,4 +727,735 @@ body {
 .estado-programado {
     color: #218739;
     font-weight: 700;
+}
+/* =====================================
+   PANEL DEL ACOMPAÑANTE
+
+.panel-acompanante .panel-header {
+    align-items: center;
+}
+
+.panel-acompanante .panel-header .logo {
+    flex: 1;
+}
+
+.panel-acompanante #saludo {
+    font-size: 18px;
+    font-weight: 700;
+    color: #3d3650;
+}
+
+.panel-acompanante #panelMensaje {
+    margin-bottom: 16px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background-color: #eee5ff;
+    color: #3d2a73;
+    font-weight: 700;
+    line-height: 1.5;
+}
+
+.panel-acompanante #panelMensaje:empty {
+    display: none;
+}
+
+.panel-acompanante #reintentar {
+    margin-bottom: 16px;
+}
+
+/* Menú y contenido */
+
+.panel-acompanante .panel-layout {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    align-items: start;
+    gap: 24px;
+}
+
+.panel-acompanante .panel-menu {
+    display: grid;
+    gap: 4px;
+    align-content: start;
+    position: sticky;
+    top: 16px;
+    padding: 16px;
+    background-color: #fff;
+    border-radius: 20px;
+    box-shadow: 0 8px 30px rgba(90, 70, 120, .12);
+}
+
+.panel-acompanante .panel-perfil {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 4px 16px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #eee5ff;
+}
+
+.panel-acompanante .panel-perfil div {
+    min-width: 0;
+}
+
+.panel-acompanante .panel-avatar {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    flex: none;
+    border-radius: 50%;
+    background-color: #7654b8;
+    color: #fff;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.panel-acompanante #personaMayor {
+    font-size: 18px;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.panel-acompanante .panel-perfil-sub {
+    margin-top: 2px;
+    font-size: 13px;
+    color: #5e5672;
+}
+
+.panel-acompanante #selectorMayor {
+    display: grid;
+    gap: 6px;
+    padding: 0 4px 10px;
+    font-size: 14px;
+    color: #5e5672;
+}
+
+.panel-acompanante #mayorElegido {
+    width: 100%;
+    min-width: 0;
+}
+
+.panel-acompanante .panel-nav {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 48px;
+    padding: 7px 10px;
+    border: 0;
+    border-radius: 12px;
+    background-color: transparent;
+    text-align: left;
+    font-family: inherit;
+    font-size: 16px;
+    color: #3d3650;
+    cursor: pointer;
+}
+
+.panel-acompanante .panel-nav span[aria-hidden] {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background-color: #f5f0ff;
+    font-size: 17px;
+}
+
+.panel-acompanante .panel-nav:hover {
+    background-color: #f5f0ff;
+}
+
+.panel-acompanante .panel-nav[aria-current="page"] {
+    background-color: #eee5ff;
+    color: #7654b8;
+    font-weight: 700;
+}
+
+.panel-acompanante .panel-nav[aria-current="page"] span[aria-hidden] {
+    background-color: #fff;
+}
+
+.panel-acompanante .panel-contador {
+    display: grid;
+    place-items: center;
+    min-width: 26px;
+    height: 24px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background-color: #f5f0ff;
+    color: #5b3fa0;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.panel-acompanante .panel-nav[aria-current="page"] .panel-contador {
+    background-color: #7654b8;
+    color: #fff;
+}
+
+.panel-acompanante .panel-contador:empty {
+    display: none;
+}
+
+.panel-acompanante .panel-contenido {
+    min-width: 0;
+}
+
+/* Secciones */
+
+.panel-acompanante .panel-seccion {
+    min-width: 0;
+}
+
+.panel-acompanante .panel-seccion h2 {
+    font-size: 24px;
+    margin-bottom: 4px;
+}
+
+.panel-acompanante .panel-vinculacion {
+    max-width: none;
+}
+
+.panel-acompanante .panel-encabezado {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 12px 16px;
+    margin-bottom: 20px;
+}
+
+.panel-acompanante .panel-encabezado > div {
+    min-width: 0;
+}
+
+.panel-acompanante .panel-bajada {
+    color: #5e5672;
+    line-height: 1.5;
+}
+
+.panel-acompanante .panel-seccion > h3 {
+    margin: 24px 0 4px;
+    font-size: 18px;
+}
+
+.panel-acompanante .panel-seccion > h3 + p,
+.panel-acompanante .panel-seccion > p {
+    line-height: 1.6;
+    color: #514966;
+}
+
+.panel-acompanante .panel-lista li {
+    padding: 16px 0;
+}
+
+.panel-acompanante .panel-lista li:first-child {
+    border-top: 0;
+}
+
+.panel-acompanante .medicamento-acciones .panel-boton,
+.panel-acompanante .contacto-acciones .panel-boton {
+    padding: 8px 14px;
+    font-size: 15px;
+}
+
+/* Contactos en tarjetas */
+
+.panel-acompanante #contactos {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    max-height: none;
+    padding-right: 0;
+}
+
+.panel-acompanante #contactos .contacto-item {
+    margin-bottom: 0;
+    border-top: 1px solid #e6ddf5;
+}
+
+/* Recordatorios */
+
+.panel-acompanante .panel-atajos {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.panel-acompanante .panel-pestana {
+    min-height: 40px;
+    padding: 8px 16px;
+    border: 1px solid #d9cdf2;
+    border-radius: 999px;
+    background-color: #fff;
+    color: #5b3fa0;
+    font-family: inherit;
+    font-size: 15px;
+    cursor: pointer;
+}
+
+.panel-acompanante .panel-pestana[aria-pressed="true"] {
+    background-color: #7654b8;
+    border-color: #7654b8;
+    color: #fff;
+    font-weight: 700;
+}
+
+.panel-acompanante .panel-atajos .panel-boton {
+    min-height: 40px;
+    padding: 8px 14px;
+    font-size: 15px;
+}
+
+.panel-acompanante .panel-filtros {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.6fr);
+    align-items: end;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding: 16px;
+    background-color: #f5f0ff;
+    border-radius: 12px;
+}
+
+.panel-acompanante .panel-campo {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+    font-size: 15px;
+}
+
+.panel-acompanante .panel-campo input,
+.panel-acompanante .panel-campo select {
+    width: 100%;
+    min-width: 0;
+    height: 44px;
+    padding: 0 40px 0 10px;
+    border: 1px solid #9675d0;
+    border-radius: 8px;
+    background-color: #fff;
+    color: #3d3650;
+    font: inherit;
+}
+
+.panel-acompanante .panel-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.panel-acompanante .panel-chip {
+    height: 40px;
+    padding: 0 12px;
+    border: 1px solid #9675d0;
+    border-radius: 999px;
+    background-color: #fff;
+    color: #5b3fa0;
+    font-family: inherit;
+    font-size: 14px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.panel-acompanante .panel-chip[aria-pressed="true"] {
+    background-color: #7654b8;
+    border-color: #7654b8;
+    color: #fff;
+}
+
+.panel-acompanante .panel-dia {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    margin-top: 20px;
+    padding-bottom: 8px;
+    font-size: 16px;
+}
+
+.panel-acompanante #recordatorios > .panel-dia:first-child {
+    margin-top: 0;
+}
+
+.panel-acompanante .panel-dia span {
+    font-size: 14px;
+    font-weight: 400;
+    color: #5e5672;
+}
+
+.panel-acompanante .panel-recordatorio {
+    display: grid;
+    grid-template-columns: 60px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px 12px;
+    padding: 12px 0;
+    border-top: 1px solid #eee5ff;
+}
+
+.panel-acompanante .panel-hora {
+    font-weight: 700;
+    color: #5b3fa0;
+}
+
+.panel-acompanante .panel-recordatorio p {
+    line-height: 1.5;
+    color: #514966;
+}
+
+.panel-acompanante .panel-recordatorio strong {
+    color: #3d3650;
+}
+
+.panel-acompanante .panel-recordatorio .medicamento-acciones {
+    grid-column: 2 / -1;
+    margin-top: 0;
+}
+
+.panel-acompanante .panel-estado {
+    padding: 4px 10px;
+    border-radius: 999px;
+    background-color: #f1eef6;
+    color: #514966;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.panel-acompanante .estado-pendiente {
+    background-color: #eee5ff;
+    color: #5b3fa0;
+}
+
+.panel-acompanante .estado-cumplido {
+    background-color: #e1f2e7;
+    color: #1d6036;
+}
+
+.panel-acompanante .estado-no_cumplido {
+    background-color: #fbe3d6;
+    color: #8f310f;
+}
+
+/* Alertas */
+
+.panel-acompanante .panel-contador-alerta:not(:empty) {
+    background-color: #C2410C;
+    color: #fff;
+}
+
+.panel-acompanante .panel-nav[aria-current="page"] .panel-contador-alerta:not(:empty) {
+    background-color: #C2410C;
+}
+
+.panel-acompanante .panel-banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding: 12px 12px 12px 18px;
+    background-color: #fde6d6;
+    color: #8f310f;
+    border-radius: 16px;
+}
+
+.panel-acompanante .panel-banner p {
+    line-height: 1.5;
+}
+
+.panel-acompanante .panel-banner .panel-boton {
+    padding: 8px 14px;
+    border-color: #9a3412;
+    color: #9a3412;
+    font-size: 15px;
+}
+
+.panel-acompanante .panel-alerta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+}
+
+.panel-acompanante .panel-alerta p {
+    min-width: 0;
+    color: #3d3650;
+    line-height: 1.5;
+}
+
+.panel-acompanante .panel-alerta small {
+    display: block;
+    margin-top: 2px;
+    color: #5e5672;
+    font-size: 14px;
+}
+
+.panel-acompanante .panel-alerta .panel-boton {
+    flex: none;
+    padding: 8px 14px;
+    font-size: 15px;
+}
+
+.panel-acompanante .panel-espera {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding: 12px 14px;
+    background-color: #f5f0ff;
+    border-radius: 12px;
+    color: #514966;
+}
+
+.panel-acompanante #minutosEspera {
+    padding: 8px 40px 8px 12px;
+    font: inherit;
+    border: 1px solid #9675d0;
+    border-radius: 8px;
+    color: #3d3650;
+}
+
+/* Formularios como ventana */
+
+.panel-acompanante .panel-modal:not([hidden]) {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 30;
+    width: 520px;
+    max-width: calc(100% - 32px);
+    max-height: 90vh;
+    margin: 0;
+    padding: 28px;
+    overflow-y: auto;
+    background-color: #fff;
+    border-radius: 20px;
+    box-shadow: 0 0 0 100vmax rgba(31, 27, 45, .45), 0 20px 50px rgba(40, 30, 70, .3);
+}
+
+.panel-acompanante .panel-modal button[type="submit"] {
+    background-color: #7654b8;
+    color: #fff;
+}
+
+/* Desplegables con la flecha propia y la lista con el estilo del panel */
+
+.panel-acompanante select,
+.panel-acompanante #mayorElegido {
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 40px;
+    cursor: pointer;
+    background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23514966' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 14px center;
+}
+
+.panel-acompanante select,
+.panel-acompanante #mayorElegido {
+    appearance: base-select;
+}
+
+.panel-acompanante select::picker-icon {
+    display: none;
+}
+
+.panel-acompanante select::picker(select) {
+    appearance: base-select;
+    margin-top: 4px;
+    padding: 6px;
+    border: 1px solid #9675d0;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(61, 54, 80, .15);
+}
+
+.panel-acompanante option {
+    padding: 8px 12px;
+    border-radius: 8px;
+    color: #3d3650;
+}
+
+.panel-acompanante option::checkmark {
+    display: none;
+}
+
+.panel-acompanante option:hover,
+.panel-acompanante option:focus-visible {
+    background-color: #f5f0ff;
+}
+
+.panel-acompanante option:checked {
+    background-color: #ede4ff;
+    font-weight: 600;
+}
+
+.panel-acompanante option:disabled {
+    color: #9a93a8;
+}
+
+.panel-acompanante .panel-campo select {
+    display: flex;
+    align-items: center;
+}
+
+.panel-acompanante #turnoForm:not([hidden]) {
+    width: 520px;
+    max-width: calc(100% - 32px);
+}
+
+.panel-acompanante .panel-seccion:has(.panel-modal:not([hidden])) > [role="status"]:not(:empty) {
+    position: fixed;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 40;
+    max-width: calc(100% - 32px);
+    padding: 10px 16px;
+    border-radius: 12px;
+    background-color: #eee5ff;
+    color: #3d2a73;
+    font-weight: 700;
+    line-height: 1.5;
+    box-shadow: 0 8px 30px rgba(40, 30, 70, .3);
+}
+
+/* Botones nuevos con foco visible */
+
+.panel-acompanante .panel-nav:focus-visible,
+.panel-acompanante .panel-pestana:focus-visible,
+.panel-acompanante .panel-chip:focus-visible,
+.panel-acompanante .panel-hamburguesa:focus-visible,
+.panel-acompanante .panel-cerrar-menu:focus-visible {
+    outline: 3px solid #9675d0;
+    outline-offset: 3px;
+}
+
+.panel-acompanante .panel-hamburguesa,
+.panel-acompanante .panel-cerrar-menu,
+.panel-acompanante .panel-fondo {
+    display: none;
+}
+
+@media (max-width: 860px) {
+
+    .panel-acompanante .panel-header {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .panel-acompanante .panel-header .logo p,
+    .panel-acompanante #saludo {
+        display: none;
+    }
+
+    .panel-acompanante .panel-header .logo h1 {
+        font-size: 22px;
+    }
+
+    .panel-acompanante #cerrarSesion {
+        padding: 8px 12px;
+        font-size: 14px;
+    }
+
+    .panel-acompanante .panel-hamburguesa {
+        display: grid;
+        place-items: center;
+        width: 44px;
+        height: 44px;
+        flex: none;
+        border: 1px solid #d9cdf2;
+        border-radius: 12px;
+        background-color: #fff;
+        color: #3d3650;
+        font-family: inherit;
+        font-size: 20px;
+        cursor: pointer;
+    }
+
+    .panel-acompanante .panel-layout {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 16px;
+    }
+
+    .panel-acompanante .panel-menu {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 21;
+        width: 280px;
+        overflow-y: auto;
+        padding: 20px 14px;
+        border-radius: 0 20px 20px 0;
+        transform: translateX(-100%);
+        transition: transform .2s;
+    }
+
+    .panel-acompanante .panel-menu.abierto {
+        transform: none;
+    }
+
+    .panel-acompanante .panel-cerrar-menu {
+        display: grid;
+        place-items: center;
+        width: 40px;
+        height: 40px;
+        flex: none;
+        margin-left: auto;
+        border: 1px solid #d9cdf2;
+        border-radius: 12px;
+        background-color: #fff;
+        color: #3d3650;
+        font-family: inherit;
+        font-size: 18px;
+        cursor: pointer;
+    }
+
+    .panel-acompanante .panel-fondo:not([hidden]) {
+        display: block;
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 20;
+        background-color: rgba(40, 30, 70, .45);
+    }
+
+    .panel-acompanante .panel-seccion {
+        padding: 18px;
+    }
+
+    .panel-acompanante .panel-seccion h2 {
+        font-size: 21px;
+    }
+
+    .panel-acompanante .panel-filtros {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .panel-acompanante .panel-campo-tipo {
+        grid-column: 1 / -1;
+    }
+
+    .panel-acompanante #contactos {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .panel-acompanante .panel-recordatorio {
+        grid-template-columns: 52px minmax(0, 1fr) auto;
+        gap: 8px 10px;
+    }
+
+    .panel-acompanante .panel-recordatorio .medicamento-acciones {
+        grid-column: 1 / -1;
+    }
 }
