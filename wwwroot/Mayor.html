@@ -1,5 +1,4 @@
-﻿<!
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -9,36 +8,62 @@
 </head>
 <body>
     <main class="panel-mayor">
+
         <header class="encabezado-mayor">
             <h1>AcompañAR</h1>
             <p>Tu espacio personal</p>
-            <button type="button" id="btnCerrarSesion" class="boton-salir-mayor">
+
+            <button type="button"
+                    id="btnCerrarSesion"
+                    class="boton-salir-mayor">
                 Cerrar sesión
             </button>
         </header>
 
         <section class="bienvenida-mayor">
-            <h2>¡Hola!</h2>
-            <p>Acá podés consultar tu información.</p>
+            <h2 id="saludoMayor">¡Hola!</h2>
+            <p>Acá podés consultar tu información personal.</p>
+        </section>
+        <!-- CONTACTOS DE CONFIANZA -->
+        <section class="seccion-mayor"
+                 aria-labelledby="tituloContactosMayor">
+
+            <h2 id="tituloContactosMayor">Mis contactos importantes</h2>
+
+            <div id="listaContactosMayor" aria-live="polite">
+                <p>Cargando tus contactos...</p>
+            </div>
+
         </section>
 
-        <section class="seccion-mayor">
-            <h2>Mis turnos médicos</h2>
-            <p>Acá vas a poder consultar tus próximos turnos.</p>
+        <!-- TURNOS MÉDICOS -->
+        <section class="seccion-mayor"
+                 aria-labelledby="tituloTurnosMayor">
+
+            <h2 id="tituloTurnosMayor">Mis turnos médicos</h2>
+
+            <div id="listaTurnosMayor" aria-live="polite">
+                <p>Cargando tus turnos...</p>
+            </div>
+
         </section>
 
-        <section class="seccion-mayor">
-            <h2>Mis recordatorios</h2>
-            <p>Acá vas a poder consultar tus recordatorios.</p>
+        <!-- RECORDATORIOS -->
+        <section class="seccion-mayor"
+                 aria-labelledby="tituloRecordatoriosMayor">
+
+            <h2 id="tituloRecordatoriosMayor">Mis recordatorios</h2>
+
+            <div id="listaRecordatoriosMayor" aria-live="polite">
+                <p>Cargando tus recordatorios...</p>
+            </div>
+
         </section>
 
-        <section class="seccion-mayor">
-            <h2>Mis contactos importantes</h2>
-            <p>Acá vas a poder consultar tus contactos de confianza.</p>
-        </section>
+
+
     </main>
-    <script>document.getElementById("btnCerrarSesion").addEventListener("click", () => {
-        window.location.replace("login.html");
-    });</script>
+
+    <script src="js/Mayor.js"></script>
 </body>
 </html>

@@ -1262,6 +1262,154 @@ adminApi.MapDelete("/vinculaciones/{idVinculacion:int}", async (
     }
 });
 
+app.MapGet("/api/mayor/panel", async (
+    HttpContext contexto,
+    ContactoRepository contactoRepository,
+    CancellationToken ct) =>
+{
+    contexto.Response.Headers.CacheControl = "no-store";
+
+    if (!contexto.User.IsInRole("MAYOR"))
+        return Results.Forbid();
+
+    if (!int.TryParse(
+        contexto.User.FindFirstValue(ClaimTypes.NameIdentifier),
+        out var idMayor))
+        return Results.Unauthorized();
+
+    var cadena = app.Configuration.GetConnectionString("MySql");
+
+    if (string.IsNullOrWhiteSpace(cadena))
+        return Results.Problem(
+            title: "Falta configurar la conexión con MySQL.",
+            statusCode: 500);
+
+    try
+    {
+        using var conexion = new MySqlConnection(cadena);
+        await conexion.OpenAsync(ct);
+
+        // Datos de la persona mayor
+        using var comando = new MySqlCommand("""
+            SELECT nombre, apellido
+            FROM usuario
+            WHERE id_usuario = @idMayor
+              AND tipo_usuario = 'MAYOR'
+              AND estado = TRUE
+            LIMIT 1;
+            """, conexion);
+
+        comando.Parameters.Add("@idMayor", MySqlDbType.Int32)
+            .Value = idMayor;
+
+        string nombre;
+        string apellido;
+
+        using (var lector = await comando.ExecuteReaderAsync(ct))
+        {
+            if (!await lector.ReadAsync(ct))
+                return Results.NotFound(new
+                {
+                    mensaje = "No encontramos tu usuario."
+                });
+
+            nombre = lector.GetString(0);
+            apellido = lector.GetString(1);
+        }
+
+        // Turnos médicos
+        comando.CommandText = """
+            SELECT especialidad, nombre_medico,
+                   DATE_FORMAT(fecha, '%Y-%m-%d'),
+                   TIME_FORMAT(hora, '%H:%i'),
+                   direccion, motivo, estado
+            FROM turno_medico
+            WHERE id_mayor = @idMayor
+            ORDER BY fecha, hora;
+            """;
+
+        var turnos = new List<object>();
+
+        using (var lector = await comando.ExecuteReaderAsync(ct))
+        {
+            while (await lector.ReadAsync(ct))
+            {
+                turnos.Add(new
+                {
+                    especialidad = lector.GetString(0),
+                    medico = lector.GetString(1),
+                    fecha = lector.GetString(2),
+                    hora = lector.GetString(3),
+                    direccion = lector.GetString(4),
+                    motivo = lector.IsDBNull(5)
+                        ? null : lector.GetString(5),
+                    estado = lector.GetString(6)
+                });
+            }
+        }
+
+        // Recordatorios
+        comando.CommandText = """
+            SELECT COALESCE(m.nombre, t.especialidad),
+                   CASE
+                       WHEN r.id_medicamento IS NOT NULL
+                           THEN 'Medicamento'
+                       ELSE 'Turno médico'
+                   END,
+                   DATE_FORMAT(r.fecha_hora, '%Y-%m-%d'),
+                   TIME_FORMAT(r.fecha_hora, '%H:%i'),
+                   r.estado
+            FROM recordatorio r
+            LEFT JOIN medicamento m
+                ON m.id_medicamento = r.id_medicamento
+            LEFT JOIN turno_medico t
+                ON t.id_turno = r.id_turno
+            WHERE m.id_mayor = @idMayor
+               OR t.id_mayor = @idMayor
+            ORDER BY r.fecha_hora;
+            """;
+
+        var recordatorios = new List<object>();
+
+        using (var lector = await comando.ExecuteReaderAsync(ct))
+        {
+            while (await lector.ReadAsync(ct))
+            {
+                recordatorios.Add(new
+                {
+                    nombre = lector.GetString(0),
+                    tipo = lector.GetString(1),
+                    fecha = lector.GetString(2),
+                    hora = lector.GetString(3),
+                    estado = lector.GetString(4)
+                });
+            }
+        }
+
+        // Contactos de confianza
+        var contactos = await contactoRepository
+            .ObtenerContactosAsync(idMayor, ct);
+
+        return Results.Ok(new
+        {
+            nombre,
+            apellido,
+            turnos,
+            recordatorios,
+            contactos
+        });
+    }
+    catch (MySqlException ex)
+    {
+        app.Logger.LogError(
+            ex, "No se pudo cargar el panel de la persona mayor.");
+
+        return Results.Problem(
+            title : "No pudimos cargar tu información.",
+            statusCode: 503);
+    }
+}).RequireAuthorization().WithTags("Persona mayor");
+
 app.Run();
 
 record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)

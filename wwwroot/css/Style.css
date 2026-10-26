@@ -605,12 +605,21 @@ body {
     /* Bienvenida */
 
     .panel-mayor .bienvenida-mayor {
-        padding: 24px;
-        margin-bottom: 20px;
-        border-radius: 14px;
-        background-color: #eee5ff;
-        border: 1px solid #dfd0ff;
-        box-shadow: 0 8px 24px rgba(91, 53, 181, 0.12);
+        padding: 30px;
+        min-height: 180px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .panel-mayor .bienvenida-mayor h2 {
+    font-size: 2rem;
+    margin-bottom: 12px;
+    }
+
+    .panel-mayor .bienvenida-mayor p {
+    font-size: 1.1rem;
+    line-height: 1.6;
     }
 
     /* Secciones */
@@ -634,12 +643,16 @@ body {
             color: #7654b8;
         }
 
-        .panel-mayor .bienvenida-mayor p,
-        .panel-mayor .seccion-mayor p {
-            font-size: 1.15rem;
-            line-height: 1.6;
-            margin-bottom: 0;
-        }
+    .panel-mayor .bienvenida-mayor h2 {
+        font-size: 2rem;
+    }
+
+    .panel-mayor .bienvenida-mayor p,
+    .panel-mayor .seccion-mayor p {
+        font-size: 1.15rem;
+        line-height: 1.6;
+        margin-bottom: 0;
+    }
 
 /* Adaptación para celulares */
 
@@ -675,3 +688,40 @@ body {
         outline: 3px solid #eee5ff;
         outline-offset: 4px;
     }
+
+/* Tarjetas individuales del panel de la persona mayor */
+.tarjeta-mayor {
+    background-color: #ffffff;
+    border: 1px solid #e5d9f7;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 14px;
+    box-shadow: 0 3px 8px rgba(70, 40, 110, 0.08);
+}
+
+    .tarjeta-mayor h3 {
+        color: #7650b8;
+        font-size: 1.1rem;
+        margin: 0 0 12px;
+    }
+
+    .tarjeta-mayor p {
+        margin: 6px 0;
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+    }
+
+        .tarjeta-mayor p strong {
+            color: #35234f;
+        }
+
+/* Estados de los turnos médicos */
+.estado-cancelado {
+    color: #c62828;
+    font-weight: 700;
+}
+
+.estado-programado {
+    color: #218739;
+    font-weight: 700;
+}
