@@ -573,9 +573,163 @@ body {
     background-color: #ffecec;
 }
 
+/* ===== Panel de la persona mayor ===== */
+
+.panel-mayor {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 32px 24px;
+    color: #3d3650;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+    /* Encabezado */
+
+    .panel-mayor .encabezado-mayor {
+        padding: 24px;
+        margin-bottom: 24px;
+        border-radius: 16px;
+        text-align: center;
+        background-color: #7654b8;
+        color: white;
+    }
+
+        .panel-mayor .encabezado-mayor h1 {
+            margin: 0 0 8px;
+            font-size: 2rem;
+        }
+
+        .panel-mayor .encabezado-mayor p {
+            margin: 0;
+            font-size: 1.2rem;
+        }
+
+    /* Bienvenida */
+
+    .panel-mayor .bienvenida-mayor {
+        padding: 30px;
+        min-height: 180px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .panel-mayor .bienvenida-mayor h2 {
+    font-size: 2rem;
+    margin-bottom: 12px;
+    }
+
+    .panel-mayor .bienvenida-mayor p {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    }
+
+    /* Secciones */
+
+    .panel-mayor .seccion-mayor {
+        padding: 24px;
+        margin-bottom: 20px;
+        border-radius: 14px;
+        background-color: #ffffff;
+        border: 1px solid #e5e0ed;
+        box-shadow: 0 8px 30px rgba(90, 70, 120, 0.12);
+    }
+
+        /* Títulos y textos */
+
+        .panel-mayor .bienvenida-mayor h2,
+        .panel-mayor .seccion-mayor h2 {
+            margin-top: 0;
+            margin-bottom: 12px;
+            font-size: 1.5rem;
+            color: #7654b8;
+        }
+
+    .panel-mayor .bienvenida-mayor h2 {
+        font-size: 2rem;
+    }
+
+    .panel-mayor .bienvenida-mayor p,
+    .panel-mayor .seccion-mayor p {
+        font-size: 1.15rem;
+        line-height: 1.6;
+        margin-bottom: 0;
+    }
+
+/* Adaptación para celulares */
+
+@media (max-width: 600px) {
+    .panel-mayor {
+        padding: 20px 14px;
+    }
+
+        .panel-mayor .encabezado-mayor,
+        .panel-mayor .bienvenida-mayor,
+        .panel-mayor .seccion-mayor {
+            padding: 20px;
+        }
+}
+.panel-mayor .boton-salir-mayor {
+    margin-top: 18px;
+    padding: 12px 20px;
+    border: 2px solid white;
+    border-radius: 10px;
+    background-color: transparent;
+    color: white;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+    .panel-mayor .boton-salir-mayor:hover {
+        background-color: white;
+        color: #7654b8;
+    }
+
+    .panel-mayor .boton-salir-mayor:focus-visible {
+        outline: 3px solid #eee5ff;
+        outline-offset: 4px;
+    }
+
+/* Tarjetas individuales del panel de la persona mayor */
+.tarjeta-mayor {
+    background-color: #ffffff;
+    border: 1px solid #e5d9f7;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 14px;
+    box-shadow: 0 3px 8px rgba(70, 40, 110, 0.08);
+}
+
+    .tarjeta-mayor h3 {
+        color: #7650b8;
+        font-size: 1.1rem;
+        margin: 0 0 12px;
+    }
+
+    .tarjeta-mayor p {
+        margin: 6px 0;
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+    }
+
+        .tarjeta-mayor p strong {
+            color: #35234f;
+        }
+
+/* Estados de los turnos médicos */
+.estado-cancelado {
+    color: #c62828;
+    font-weight: 700;
+}
+
+.estado-programado {
+    color: #218739;
+    font-weight: 700;
+}
 /* =====================================
    PANEL DEL ACOMPAÑANTE
-===================================== */
 
 .panel-acompanante .panel-header {
     align-items: center;
