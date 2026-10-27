@@ -38,6 +38,8 @@ public class MainActivity extends AppCompatActivity {
     private int careGeneration;
     private String careScreen = "HOME";
     private JSONObject carePanel;
+    private final Map<String, TextView> menuBadges = new LinkedHashMap<>();
+    private final Map<String, MaterialButton> menuEntries = new LinkedHashMap<>();
     private final android.os.Handler careHandler = new android.os.Handler(android.os.Looper.getMainLooper());
     private final Runnable refreshCare = new Runnable() {
         @Override public void run() {
@@ -88,6 +90,8 @@ public class MainActivity extends AppCompatActivity {
         return view;
     }
     private void reset(String title, String description) {
+        menuBadges.clear();
+        menuEntries.clear();
         content.removeAllViews(); fields.clear(); birthDate = null;
         text(title, 26, true); text(description, 18, false);
         findViewById(R.id.main).post(() -> ((android.widget.ScrollView) findViewById(R.id.main)).scrollTo(0, 0));
@@ -252,9 +256,69 @@ public class MainActivity extends AppCompatActivity {
             () -> shareLinkingCode(user));
         button("Cerrar sesión", false, () -> { api.clearSession(); showLogin(); });
         careHandler.removeCallbacks(refreshCare);
+        updateMenuBadges();
+        careHandler.post(refreshCare);
     }
     private void menuButton(String title, String description, int icon, String screen) {
         menuButton(title, description, icon, () -> showCareScreen(screen));
+        MaterialButton entry = (MaterialButton) content.getChildAt(content.getChildCount() - 1);
+        LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) entry.getLayoutParams();
+        content.removeView(entry);
+        android.widget.FrameLayout container = new android.widget.FrameLayout(this);
+        content.addView(container, params);
+        container.addView(entry, new android.widget.FrameLayout.LayoutParams(-1, -2));
+        TextView badge = new TextView(this);
+        badge.setTextSize(18);
+        badge.setTypeface(null, android.graphics.Typeface.BOLD);
+        badge.setTextColor(android.graphics.Color.WHITE);
+        badge.setGravity(android.view.Gravity.CENTER);
+        badge.setMinWidth(dp(32));
+        badge.setMinHeight(dp(32));
+        badge.setPadding(dp(8), dp(2), dp(8), dp(2));
+        android.graphics.drawable.GradientDrawable background = new android.graphics.drawable.GradientDrawable();
+        background.setColor(android.graphics.Color.parseColor("#B3261E"));
+        background.setCornerRadius(dp(24));
+        badge.setBackground(background);
+        badge.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        badge.setVisibility(View.GONE);
+        android.widget.FrameLayout.LayoutParams badgeParams = new android.widget.FrameLayout.LayoutParams(-2, -2,
+            android.view.Gravity.TOP | android.view.Gravity.END);
+        badgeParams.topMargin = dp(8);
+        badgeParams.setMarginEnd(dp(8));
+        container.addView(badge, badgeParams);
+        entry.setTag(entry.getContentDescription());
+        menuEntries.put(screen, entry);
+        menuBadges.put(screen, badge);
+    }
+    private boolean isPendingReminder(JSONObject item) {
+        return item != null && item.isNull("cumplimiento") && item.optInt("disponible") == 1
+            && !"CANCELADO".equals(item.optString("estado"));
+    }
+    private void updateMenuBadges() {
+        if (carePanel == null || !"HOME".equals(careScreen)) return;
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        org.json.JSONArray reminders = carePanel.optJSONArray("recordatorios");
+        if (reminders != null) for (int i = 0; i < reminders.length(); i++) {
+            JSONObject item = reminders.optJSONObject(i);
+            if (isPendingReminder(item)) {
+                String type = item.optString("tipo");
+                counts.put(type, counts.getOrDefault(type, 0) + 1);
+            }
+        }
+        org.json.JSONArray invitations = carePanel.optJSONArray("solicitudes");
+        int requests = 0;
+        if (invitations != null) for (int i = 0; i < invitations.length(); i++) {
+            if (invitations.optJSONObject(i) != null) requests++;
+        }
+        counts.put("SOLICITUDES", requests);
+        for (Map.Entry<String, TextView> badge : menuBadges.entrySet()) {
+            int count = counts.getOrDefault(badge.getKey(), 0);
+            badge.getValue().setText(String.valueOf(count));
+            badge.getValue().setVisibility(count > 0 ? View.VISIBLE : View.GONE);
+            MaterialButton entry = menuEntries.get(badge.getKey());
+            entry.setContentDescription(entry.getTag().toString()
+                + (count > 0 ? ". " + count + (count == 1 ? " pendiente" : " pendientes") : ""));
+        }
     }
     private void menuButton(String title, String description, int icon, Runnable action) {
         MaterialButton entry = button(title + "\n" + description, false, action);
@@ -294,7 +358,7 @@ public class MainActivity extends AppCompatActivity {
         careHandler.post(refreshCare);
     }
     private void loadCare() {
-        if (loadingCare || currentUser == null || "HOME".equals(careScreen)) return;
+        if (loadingCare || currentUser == null) return;
         loadingCare = true;
         int generation = careGeneration;
         executor.execute(() -> {
@@ -304,6 +368,7 @@ public class MainActivity extends AppCompatActivity {
                     loadingCare = false;
                     if (isDestroyed() || generation != careGeneration) return;
                     carePanel = panel;
+                    updateMenuBadges();
                     if (!"HOME".equals(careScreen)) renderCare(panel);
                 });
             } catch (Exception e) {
@@ -336,7 +401,7 @@ public class MainActivity extends AppCompatActivity {
         if (reminders != null) for (int i = 0; i < reminders.length(); i++) {
             JSONObject item = reminders.optJSONObject(i);
             if (item == null || !careScreen.equals(item.optString("tipo"))
-                || !CareVisibility.isCurrent(item.optString("fecha"), today)) continue;
+                || (!CareVisibility.isCurrent(item.optString("fecha"), today) && !isPendingReminder(item))) continue;
             visible++;
             LinearLayout card = careCard();
             boolean medicine = "MEDICAMENTO".equals(item.optString("tipo"));
@@ -611,7 +676,7 @@ public class MainActivity extends AppCompatActivity {
     @Override protected void onStart() {
         super.onStart();
         careHandler.removeCallbacks(refreshCare);
-        if (currentUser != null && !"HOME".equals(careScreen)) careHandler.post(refreshCare);
+        if (currentUser != null) careHandler.post(refreshCare);
     }
     @Override protected void onStop() {
         careHandler.removeCallbacks(refreshCare);
