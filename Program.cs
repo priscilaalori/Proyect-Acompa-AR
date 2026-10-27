@@ -1462,7 +1462,7 @@ adminApi.MapDelete("/vinculaciones/{idVinculacion:int}", async (
     }
 });
 
-app.MapGet("/api/mayor/panel", async (
+app.MapGet("/api/mayor/panel-web", async (
     HttpContext contexto,
     ContactoRepository contactoRepository,
     CancellationToken ct) =>
@@ -1564,8 +1564,10 @@ app.MapGet("/api/mayor/panel", async (
                 ON m.id_medicamento = r.id_medicamento
             LEFT JOIN turno_medico t
                 ON t.id_turno = r.id_turno
-            WHERE m.id_mayor = @idMayor
-               OR t.id_mayor = @idMayor
+            WHERE (m.id_mayor = @idMayor OR t.id_mayor = @idMayor)
+              AND r.fecha_hora >= CURDATE()
+              AND r.fecha_hora < DATE_ADD(CURDATE(), INTERVAL 2 DAY)
+              AND r.estado <> 'CANCELADO'
             ORDER BY r.fecha_hora;
             """;
 
