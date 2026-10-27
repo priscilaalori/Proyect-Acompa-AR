@@ -55,6 +55,62 @@ namespace AcompañAR.Proyecto.Repositories
             return usuarios;
         }
 
+        public async Task<List<object>> BuscarUsuariosAsync(
+            string tipo,
+            string buscar,
+            CancellationToken ct)
+        {
+            var usuarios = new List<object>();
+
+            using var conexion = new MySqlConnection(_cadenaConexion);
+            await conexion.OpenAsync(ct);
+
+            using var comando = new MySqlCommand(
+                """
+                SELECT id_usuario, nombre, apellido,
+                       tipo_usuario, codigo_mayor, email
+                FROM usuario
+                WHERE estado = TRUE
+                    AND tipo_usuario = @tipo
+                    AND (
+                        nombre LIKE @patron
+                        OR apellido LIKE @patron
+                        OR CONCAT(nombre, ' ', apellido) LIKE @patron
+                        OR codigo_mayor = @buscar
+                        OR email = @buscar
+                        OR id_usuario = @id
+                    )
+                ORDER BY apellido, nombre, id_usuario
+                LIMIT 10;
+                """,
+                conexion);
+
+            comando.Parameters.AddWithValue("@tipo", tipo);
+            comando.Parameters.AddWithValue("@buscar", buscar);
+            comando.Parameters.AddWithValue("@patron", $"%{buscar}%");
+
+            int.TryParse(buscar, out int idBuscado);
+            comando.Parameters.AddWithValue("@id", idBuscado);
+
+            using var lector = await comando.ExecuteReaderAsync(ct);
+
+            while (await lector.ReadAsync(ct))
+            {
+                usuarios.Add(new
+                {
+                    idUsuario = lector.GetInt32(0),
+                    nombre = lector.GetString(1),
+                    apellido = lector.GetString(2),
+                    tipoUsuario = lector.GetString(3),
+                    codigoMayor = lector.IsDBNull(4)
+                        ? null : lector.GetString(4),
+                    email = lector.GetString(5)
+                });
+            }
+
+            return usuarios;
+        }
+
         public async Task<List<object>> ListarVinculacionesAsync(
             CancellationToken cancellationToken)
         {

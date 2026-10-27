@@ -1306,6 +1306,55 @@ adminApi.MapGet("/usuarios", async (
     }
 });
 
+adminApi.MapGet("/usuarios/buscar", async (
+    string? tipo,
+    string? buscar,
+    HttpContext contexto,
+    VinculacionRepository repositorio,
+    CancellationToken ct) =>
+{
+    if (!contexto.User.IsInRole("ADMIN"))
+        return Results.Forbid();
+
+    tipo = tipo?.Trim().ToUpperInvariant();
+    buscar = buscar?.Trim();
+
+    if (tipo != "MAYOR" && tipo != "ACOMPANANTE")
+        return Results.BadRequest(new
+        {
+            mensaje = "El tipo de usuario no es válido."
+        });
+
+    if (string.IsNullOrWhiteSpace(buscar)
+        || buscar.Length > 100
+        || (buscar.Length < 2 && !int.TryParse(buscar, out _)))
+        return Results.BadRequest(new
+        {
+            mensaje = "Ingresá al menos dos caracteres o un ID."
+        });
+
+    if (!repositorio.ConexionConfigurada)
+        return Results.Problem(
+            title: "Falta configurar MySQL.",
+            statusCode: 500);
+
+    try
+    {
+        var usuarios = await repositorio.BuscarUsuariosAsync(
+            tipo, buscar, ct);
+
+        return Results.Ok(usuarios);
+    }
+    catch (MySqlException ex)
+    {
+        app.Logger.LogError(ex, "Error al buscar usuarios.");
+
+        return Results.Problem(
+            title: "No se pudieron buscar los usuarios.",
+            statusCode: 503);
+    }
+});
+
 adminApi.MapGet("/vinculaciones", async (
     HttpContext contexto,
     VinculacionRepository repositorio,

@@ -24,6 +24,91 @@ function llenarSelect(id, elementos, describir) {
     }
 }
 
+async function buscarUsuarios(tipo, nombre) {
+    const entrada = document.getElementById(`buscar${nombre}`);
+    const boton = document.getElementById(`botonBuscar${nombre}`);
+    const idSelect = `vin${nombre}`;
+    const texto = entrada.value.trim();
+
+    if (texto.length < 2 && !/^\d+$/.test(texto)) {
+        avisoVinculacion.textContent =
+            "Ingresá al menos dos caracteres o un ID.";
+        return;
+    }
+
+    boton.disabled = true;
+    avisoVinculacion.textContent = "Buscando usuarios...";
+    llenarSelect(idSelect, [], () => "");
+
+    try {
+        const ruta = `/api/admin/usuarios/buscar?tipo=${tipo}&buscar=${encodeURIComponent(texto)}`;
+
+        const respuesta = await fetch(ruta, { cache: "no-store" });
+
+        if (respuesta.status === 401) {
+            window.location.replace("login.html");
+            return;
+        }
+
+        if (respuesta.status === 403) {
+            throw new Error("No tenés permiso para buscar usuarios.");
+        }
+
+        if (!respuesta.ok) {
+            throw new Error("No se pudieron buscar los usuarios.");
+        }
+
+        const usuarios = await respuesta.json();
+
+        if (entrada.value.trim() !== texto || formulario.hidden || idEditando !== null) {
+            return;
+        }
+
+        llenarSelect(idSelect, usuarios, usuario => {
+            const nombreCompleto =
+                `${usuario.nombre} ${usuario.apellido}`;
+
+            const identificador = usuario.codigoMayor
+                ? `Código: ${usuario.codigoMayor}`
+                : `Correo: ${usuario.email}`;
+
+            return `${nombreCompleto} - ID ${usuario.idUsuario} - ${identificador}`;
+        });
+
+        avisoVinculacion.textContent = usuarios.length
+            ? `Encontramos ${usuarios.length} resultado(s). Elegí la persona correcta.`
+            : "No encontramos usuarios con esos datos.";
+
+    } catch (error) {
+        avisoVinculacion.textContent = error.message;
+    } finally {
+        boton.disabled = false;
+    }
+}
+
+for (const [tipo, nombre] of [
+    ["MAYOR", "Mayor"],
+    ["ACOMPANANTE", "Acompanante"]
+]) {
+    const entrada = document.getElementById(`buscar${nombre}`);
+    const boton = document.getElementById(`botonBuscar${nombre}`);
+
+    boton.addEventListener("click", () => {
+        buscarUsuarios(tipo, nombre);
+    });
+
+    entrada.addEventListener("keydown", event => {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            buscarUsuarios(tipo, nombre);
+        }
+    });
+
+    entrada.addEventListener("input", () => {
+        llenarSelect(`vin${nombre}`, [], () => "");
+    });
+}
+
 function mostrarLista(elementos) {
     const lista = document.getElementById("vinculaciones");
     lista.replaceChildren();
@@ -71,6 +156,7 @@ function agregarAcciones(item, vinculacion) {
     item.append(acciones);
 }
 
+/*
 async function cargar() {
     reintentar.hidden = true;
     mensaje.textContent = "Cargando información…";
@@ -102,6 +188,59 @@ async function cargar() {
         reintentar.hidden = false;
     }
 }
+*/
+
+async function cargar() {
+    reintentar.hidden = true;
+    mensaje.textContent = "Cargando información…";
+
+    try {
+        const respuesta = await fetch(
+            "/api/admin/vinculaciones",
+            { cache: "no-store" }
+        );
+
+        if (respuesta.status === 401) {
+            window.location.replace("login.html");
+            return;
+        }
+
+        if (respuesta.status === 403) {
+            mensaje.textContent =
+                "Esta página es solo para administradores.";
+            return;
+        }
+
+        const vinculaciones = await respuesta.json();
+
+        if (!respuesta.ok) {
+            throw new Error(
+                vinculaciones.mensaje ||
+                vinculaciones.title ||
+                "No pudimos cargar las vinculaciones."
+            );
+        }
+
+        mostrarLista(vinculaciones);
+
+        mensaje.textContent =
+            "Vinculaciones entre personas mayores y acompañantes.";
+
+    } catch (error) {
+        mensaje.textContent = error.message;
+        reintentar.hidden = false;
+    }
+}
+
+function seleccionarUsuarioActual(nombre, id, texto) {
+    const select = campo(nombre);
+
+    const opcion = document.createElement("option");
+    opcion.value = id;
+    opcion.textContent = `${texto} (ID ${id})`;
+
+    select.replaceChildren(opcion);
+}
 
 document.getElementById("cerrarSesion").addEventListener("click", async event => {
     event.target.disabled = true;
@@ -117,6 +256,7 @@ document.getElementById("cerrarSesion").addEventListener("click", async event =>
 reintentar.addEventListener("click", cargar);
 window.addEventListener("pageshow", cargar);
 
+/*
 function abrirFormulario(vinculacion = null) {
     if (guardando) return;
     formulario.reset();
@@ -131,6 +271,60 @@ function abrirFormulario(vinculacion = null) {
     avisoVinculacion.textContent = "";
     formulario.hidden = false;
     (vinculacion ? campo("Tipo") : campo("Mayor")).focus();
+}
+*/
+
+function abrirFormulario(vinculacion = null) {
+    if (guardando) return;
+
+    formulario.reset();
+
+    idEditando = vinculacion?.idVinculacion ?? null;
+
+    document.getElementById("tituloFormularioVinculacion").textContent =
+        vinculacion ? "Modificar vinculación" : "Agregar vinculación";
+
+    for (const nombre of ["Mayor", "Acompanante"]) {
+        const entrada = document.getElementById(`buscar${nombre}`);
+        const boton = document.getElementById(`botonBuscar${nombre}`);
+
+        entrada.disabled = Boolean(vinculacion);
+        boton.disabled = Boolean(vinculacion);
+        campo(nombre).disabled = Boolean(vinculacion);
+
+        if (!vinculacion) {
+            entrada.value = "";
+            llenarSelect(`vin${nombre}`, [], () => "");
+        }
+    }
+
+    if (vinculacion) {
+        seleccionarUsuarioActual(
+            "Mayor",
+            vinculacion.idMayor,
+            vinculacion.mayor
+        );
+
+        seleccionarUsuarioActual(
+            "Acompanante",
+            vinculacion.idAcompanante,
+            vinculacion.acompanante
+        );
+
+        document.getElementById("buscarMayor").value =
+            vinculacion.mayor;
+
+        document.getElementById("buscarAcompanante").value =
+            vinculacion.acompanante;
+    }
+
+    campo("Tipo").value = vinculacion?.tipoVinculo ?? "";
+    campo("Estado").value = vinculacion?.estado ?? "PENDIENTE";
+
+    avisoVinculacion.textContent = "";
+    formulario.hidden = false;
+
+    (vinculacion ? campo("Tipo") : document.getElementById("buscarMayor")).focus();
 }
 
 async function guardarVinculacion(metodo, id, datos) {

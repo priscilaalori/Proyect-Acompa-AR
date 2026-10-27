@@ -1459,3 +1459,28 @@ body {
         grid-column: 1 / -1;
     }
 }
+
+
+/* Búsqueda de usuarios en el panel de Administración */
+
+.admin-fila-busqueda {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+}
+
+.admin-fila-busqueda input {
+    flex: 1;
+    min-width: 0;
+}
+
+.admin-fila-busqueda .panel-boton {
+    padding: 10px 16px;
+    white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+    .admin-fila-busqueda {
+        flex-direction: column;
+    }
+}

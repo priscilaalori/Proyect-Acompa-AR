@@ -24,10 +24,43 @@
             <p id="vinculacionMensaje" role="status" aria-live="polite"></p>
             <form id="vinculacionForm" class="medicamento-form" hidden>
                 <h3 id="tituloFormularioVinculacion">Agregar vinculación</h3>
-                <label for="vinMayor">Persona mayor</label>
-                <select id="vinMayor" required></select>
-                <label for="vinAcompanante">Acompañante</label>
-                <select id="vinAcompanante" required></select>
+
+                <label for="buscarMayor">Persona mayor</label>
+                <div class="admin-fila-busqueda">
+                    <input id="buscarMayor"
+                           type="search"
+                           placeholder="Nombre, apellido, ID o código"
+                           autocomplete="off">
+
+                    <button id="botonBuscarMayor"
+                            type="button"
+                            class="panel-boton">
+                        Buscar
+                    </button>
+                </div>
+
+                <select id="vinMayor" required>
+                    <option value="">Buscá una persona mayor primero</option>
+                </select>
+
+                <label for="buscarAcompanante">Acompañante</label>
+                <div class="admin-fila-busqueda">
+                    <input id="buscarAcompanante"
+                           type="search"
+                           placeholder="Nombre, apellido, ID o correo"
+                           autocomplete="off">
+
+                    <button id="botonBuscarAcompanante"
+                            type="button"
+                            class="panel-boton">
+                        Buscar
+                    </button>
+                </div>
+
+                <select id="vinAcompanante" required>
+                    <option value="">Buscá un acompañante primero</option>
+                </select>
+
                 <label for="vinTipo">Tipo de vínculo</label>
                 <input id="vinTipo" required maxlength="50" autocomplete="off" placeholder="Ej.: Hija, Nieto">
                 <label for="vinEstado">Estado</label>
