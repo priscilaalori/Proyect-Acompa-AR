@@ -1306,6 +1306,55 @@ adminApi.MapGet("/usuarios", async (
     }
 });
 
+adminApi.MapGet("/usuarios/buscar", async (
+    string? tipo,
+    string? buscar,
+    HttpContext contexto,
+    VinculacionRepository repositorio,
+    CancellationToken ct) =>
+{
+    if (!contexto.User.IsInRole("ADMIN"))
+        return Results.Forbid();
+
+    tipo = tipo?.Trim().ToUpperInvariant();
+    buscar = buscar?.Trim();
+
+    if (tipo != "MAYOR" && tipo != "ACOMPANANTE")
+        return Results.BadRequest(new
+        {
+            mensaje = "El tipo de usuario no es válido."
+        });
+
+    if (string.IsNullOrWhiteSpace(buscar)
+        || buscar.Length > 100
+        || (buscar.Length < 2 && !int.TryParse(buscar, out _)))
+        return Results.BadRequest(new
+        {
+            mensaje = "Ingresá al menos dos caracteres o un ID."
+        });
+
+    if (!repositorio.ConexionConfigurada)
+        return Results.Problem(
+            title: "Falta configurar MySQL.",
+            statusCode: 500);
+
+    try
+    {
+        var usuarios = await repositorio.BuscarUsuariosAsync(
+            tipo, buscar, ct);
+
+        return Results.Ok(usuarios);
+    }
+    catch (MySqlException ex)
+    {
+        app.Logger.LogError(ex, "Error al buscar usuarios.");
+
+        return Results.Problem(
+            title: "No se pudieron buscar los usuarios.",
+            statusCode: 503);
+    }
+});
+
 adminApi.MapGet("/vinculaciones", async (
     HttpContext contexto,
     VinculacionRepository repositorio,
@@ -1462,7 +1511,7 @@ adminApi.MapDelete("/vinculaciones/{idVinculacion:int}", async (
     }
 });
 
-app.MapGet("/api/mayor/panel", async (
+app.MapGet("/api/mayor/panel-web", async (
     HttpContext contexto,
     ContactoRepository contactoRepository,
     CancellationToken ct) =>
@@ -1564,8 +1613,10 @@ app.MapGet("/api/mayor/panel", async (
                 ON m.id_medicamento = r.id_medicamento
             LEFT JOIN turno_medico t
                 ON t.id_turno = r.id_turno
-            WHERE m.id_mayor = @idMayor
-               OR t.id_mayor = @idMayor
+            WHERE (m.id_mayor = @idMayor OR t.id_mayor = @idMayor)
+              AND r.fecha_hora >= CURDATE()
+              AND r.fecha_hora < DATE_ADD(CURDATE(), INTERVAL 2 DAY)
+              AND r.estado <> 'CANCELADO'
             ORDER BY r.fecha_hora;
             """;
 
