@@ -9,6 +9,8 @@ const campo = nombre => document.getElementById(`vin${nombre}`);
 let idEditando = null;
 let guardando = false;
 
+let paginaVinculaciones = 1;
+
 function llenarSelect(id, elementos, describir) {
     const select = document.getElementById(id);
     select.replaceChildren();
@@ -124,6 +126,16 @@ function mostrarLista(elementos) {
         const encabezado = document.createElement("h3");
         encabezado.textContent = `${vinculacion.mayor} (persona mayor) y ${vinculacion.acompanante} (acompañante)`;
         item.append(encabezado);
+
+        const identificadores = document.createElement("p");
+
+        identificadores.textContent =
+            `Vinculación #${vinculacion.idVinculacion} · ` +
+            `Mayor #${vinculacion.idMayor} · ` +
+            `Acompañante #${vinculacion.idAcompanante}`;
+
+        item.append(identificadores);
+
         for (const detalle of [
             `Vínculo: ${vinculacion.tipoVinculo}`,
             `Estado: ${estados[vinculacion.estado] || vinculacion.estado}`,
@@ -131,6 +143,14 @@ function mostrarLista(elementos) {
         ]) {
             const parrafo = document.createElement("p");
             parrafo.textContent = detalle;
+
+            if (detalle.startsWith("Estado:")) {
+                parrafo.classList.add(
+                    "estado-vinculacion",
+                    `estado-${vinculacion.estado.toLowerCase()}`
+                );
+            }
+
             item.append(parrafo);
         }
         agregarAcciones(item, vinculacion);
@@ -195,8 +215,15 @@ async function cargar() {
     mensaje.textContent = "Cargando información…";
 
     try {
+        const parametros = new URLSearchParams({
+            buscar: document.getElementById("buscarVinculaciones").value.trim(),
+            tipoBusqueda: document.getElementById("tipoBusquedaVinculaciones").value,
+            estado: document.getElementById("estadoVinculaciones").value,
+            pagina: paginaVinculaciones
+        });
+
         const respuesta = await fetch(
-            "/api/admin/vinculaciones",
+            `/api/admin/vinculaciones/buscar?${parametros}`,
             { cache: "no-store" }
         );
 
@@ -211,17 +238,45 @@ async function cargar() {
             return;
         }
 
-        const vinculaciones = await respuesta.json();
+        const datos = await respuesta.json();
 
         if (!respuesta.ok) {
             throw new Error(
-                vinculaciones.mensaje ||
-                vinculaciones.title ||
+                datos.mensaje ||
+                datos.title ||
                 "No pudimos cargar las vinculaciones."
             );
         }
 
-        mostrarLista(vinculaciones);
+        const totalPaginas = Math.max(1, datos.totalPaginas);
+
+        if (paginaVinculaciones > totalPaginas) {
+            paginaVinculaciones = totalPaginas;
+            return await cargar();
+        }
+
+        mostrarLista(datos.vinculaciones);
+
+        document.getElementById("paginaActual").textContent =
+            `Página ${datos.pagina} de ${totalPaginas}`;
+
+        const desde = datos.total === 0
+            ? 0
+            : (datos.pagina - 1) * datos.limite + 1;
+
+        const hasta = Math.min(
+            datos.pagina * datos.limite,
+            datos.total
+        );
+
+        document.getElementById("resumenVinculaciones").textContent =
+            `Mostrando ${desde}-${hasta} de ${datos.total} vinculaciones`;
+
+        document.getElementById("paginaAnterior").disabled =
+            datos.pagina <= 1;
+
+        document.getElementById("paginaSiguiente").disabled =
+            datos.pagina >= totalPaginas;
 
         mensaje.textContent =
             "Vinculaciones entre personas mayores y acompañantes.";
@@ -376,4 +431,55 @@ document.getElementById("cancelarVinculacion").addEventListener("click", () => {
     formulario.hidden = true;
     avisoVinculacion.textContent = "";
     document.getElementById("nuevaVinculacion").focus();
+});
+
+document.getElementById("botonBuscarVinculaciones")
+        .addEventListener("click", () => {
+        paginaVinculaciones = 1;
+        cargar();
+});
+
+document.getElementById("buscarVinculaciones")
+        .addEventListener("keydown", event => {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            paginaVinculaciones = 1;
+            cargar();
+        }
+});
+
+document.getElementById("estadoVinculaciones")
+        .addEventListener("change", () => {
+        paginaVinculaciones = 1;
+        cargar();
+});
+
+document.getElementById("paginaAnterior")
+        .addEventListener("click", () => {
+        if (paginaVinculaciones > 1) {
+            paginaVinculaciones--;
+            cargar();
+        }
+});
+
+document.getElementById("paginaSiguiente")
+        .addEventListener("click", () => {
+        paginaVinculaciones++;
+        cargar();
+});
+
+document.getElementById("tipoBusquedaVinculaciones")
+        .addEventListener("change", () => {
+
+        const entrada = document.getElementById("buscarVinculaciones");
+        const tipo = document.getElementById("tipoBusquedaVinculaciones").value;
+
+        entrada.value = "";
+
+        entrada.placeholder = tipo === "nombre"
+            ? "Nombre o apellido"
+            : "Ingresá el ID";
+
+        paginaVinculaciones = 1;
+        cargar();
 });
