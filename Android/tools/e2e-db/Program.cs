@@ -5,7 +5,7 @@ using MySql.Data.MySqlClient;
 
 // Read-only verification of the fictitious accounts created through the visible interfaces.
 var backend = Path.GetFullPath("..");
-var reportPath = Path.GetFullPath("app/build/visible-e2e/run.json");
+var reportPath = Path.GetFullPath(args.Length > 0 ? args[0] : "app/build/visible-e2e/run.json");
 using var run = JsonDocument.Parse(await File.ReadAllTextAsync(reportPath));
 int mayor = run.RootElement.GetProperty("mayorId").GetInt32();
 int companion = run.RootElement.GetProperty("companionId").GetInt32();
@@ -44,6 +44,9 @@ using (var link = new MySqlCommand("SELECT estado FROM vinculacion WHERE id_mayo
 }
 var expected = run.RootElement.GetProperty("cases").EnumerateArray().ToDictionary(
     c => c.GetProperty("name").GetString()!, c => c.GetProperty("done").GetBoolean() ? "CUMPLIDO" : "NO_CUMPLIDO");
+var attended = run.RootElement.GetProperty("cases").EnumerateArray()
+    .Where(c => c.GetProperty("type").GetString() == "turno" && c.GetProperty("done").GetBoolean())
+    .Select(c => c.GetProperty("name").GetString()!).ToHashSet();
 var results = new List<object>();
 using (var command = new MySqlCommand("""
     SELECT r.id_recordatorio, COALESCE(m.nombre,t.especialidad) nombre,
@@ -66,12 +69,13 @@ using (var command = new MySqlCommand("""
         if (!expected.TryGetValue(name, out var state)) continue;
         string? actual = reader.IsDBNull(2) ? null : reader.GetString(2);
         if (actual != state || reader.GetInt64(4) != 1) throw new Exception("Missing, duplicate or wrong fulfillment: " + name);
-        if (name == "Prueba turno positivo" && reader.GetString(3) != "REALIZADO") throw new Exception("Attended appointment was not marked REALIZADO");
+        if (attended.Contains(name) && reader.GetString(3) != "REALIZADO") throw new Exception("Attended appointment was not marked REALIZADO");
         seen.Add(name);
         results.Add(new { idRecordatorio = reader.GetInt32(0), name, expected = state, actual, passed = true });
     }
-    if (seen.Count != 4) throw new Exception("Expected the four notification responses in the database");
+    if (seen.Count != expected.Count) throw new Exception("Expected all notification responses in the database");
 }
 var report = new { verifiedAt = DateTimeOffset.UtcNow, mayor, companion, checks, results, passed = true };
-await File.WriteAllTextAsync(Path.Combine(Path.GetDirectoryName(reportPath)!, "database-check.json"), JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }));
+var reportName = Path.GetFileName(reportPath) == "run.json" ? "database-check.json" : Path.GetFileNameWithoutExtension(reportPath) + "-database-check.json";
+await File.WriteAllTextAsync(Path.Combine(Path.GetDirectoryName(reportPath)!, reportName), JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }));
 Console.WriteLine("PASS: both registered accounts, accepted relationship and all four unique fulfillment rows verified directly in MySQL.");

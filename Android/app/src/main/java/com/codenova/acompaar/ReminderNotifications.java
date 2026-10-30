@@ -84,6 +84,8 @@ final class ReminderNotifications {
                 action(c, id, "care.answer", true)).build());
             builder.addAction(new Notification.Action.Builder(null, medicine ? "No lo tomé" : "No asistí",
                 action(c, id, "care.answer", false)).build());
+            builder.addAction(new Notification.Action.Builder(null, "Escuchar",
+                action(c, id, "care.speak", false)).build());
         }
         nm.notify("care", id, builder.build());
     }
@@ -126,6 +128,7 @@ final class ReminderNotifications {
     }
 
     static synchronized void clear(Context c) {
+        ReminderSpeechService.stop(c);
         JSONObject items = object(read(c), "items");
         Iterator<String> keys = items.keys();
         while (keys.hasNext()) cancel(c, Integer.parseInt(keys.next()));
@@ -182,6 +185,18 @@ final class ReminderNotifications {
         notify(c, id, item.optString("nombre"), item.optString("hora") + " · " + item.optString("detalle"),
             true, "MEDICAMENTO".equals(item.optString("tipo")));
         put(shown, key, true); put(data, "shown", shown); write(c, data);
+        if (ReminderSpeechService.enabled(c)) readAloud(c, id);
+    }
+
+    static synchronized void readAloud(Context c, int id) {
+        JSONObject data = read(c);
+        String key = Integer.toString(id);
+        JSONObject item = object(object(data, "items"), key);
+        if (!item.has("idRecordatorio") || object(data, "outbox").has(key)
+            || !ReminderTiming.dueToday(item.optString("fecha"), item.optString("hora"),
+                System.currentTimeMillis(), ZoneId.systemDefault())) return;
+        ReminderSpeechService.play(c, ReminderSpeechText.format("MEDICAMENTO".equals(item.optString("tipo")),
+            item.optString("nombre"), item.optString("hora"), item.optString("detalle")));
     }
 
     static synchronized void answer(Context c, int id, boolean done) {
@@ -190,6 +205,7 @@ final class ReminderNotifications {
         JSONObject item = object(object(data, "items"), key);
         JSONObject outbox = object(data, "outbox");
         if (!item.has("idRecordatorio") || outbox.has(key) || time(item) > System.currentTimeMillis()) return;
+        ReminderSpeechService.stop(c);
         put(outbox, key, done ? "CUMPLIDO" : "NO_CUMPLIDO"); put(data, "outbox", outbox);
         put(data, "activityAt", System.currentTimeMillis());
         if (!write(c, data)) {

@@ -258,6 +258,7 @@ public class MainActivity extends AppCompatActivity {
         menuButton("Compartir mi código", "Vincularme con quien me acompaña", R.drawable.ic_share,
             () -> shareLinkingCode(user));
         button("Configurar notificaciones", false, this::configureNotifications);
+        button("Lectura en voz alta", false, this::configureVoice);
         button("Cerrar sesión", false, () -> { ReminderNotifications.clear(this); api.clearSession(); showLogin(); });
         ReminderNotifications.activate(this, user);
         if (android.os.Build.VERSION.SDK_INT >= 33
@@ -715,6 +716,43 @@ public class MainActivity extends AppCompatActivity {
             foregroundActivityAt = System.currentTimeMillis();
             careHandler.post(refreshCare);
         }
+    }
+    private void configureVoice() {
+        LinearLayout options = new LinearLayout(this);
+        options.setOrientation(LinearLayout.VERTICAL);
+        int padding = (int) (24 * getResources().getDisplayMetrics().density);
+        options.setPadding(padding, padding / 2, padding, padding / 2);
+        com.google.android.material.materialswitch.MaterialSwitch enabled =
+            new com.google.android.material.materialswitch.MaterialSwitch(this);
+        enabled.setText("Leer recordatorios en voz alta");
+        enabled.setTextSize(20);
+        enabled.setChecked(ReminderSpeechService.enabled(this));
+        enabled.setOnCheckedChangeListener((view, checked) -> ReminderSpeechService.setEnabled(this, checked));
+        options.addView(enabled);
+        TextView explanation = new TextView(this);
+        explanation.setText("Lee el nombre, la hora y los detalles de tus medicamentos y turnos cuando llega el aviso. Usá el volumen de alarmas. Respeta el modo silencio y No molestar. Necesitás una voz en español instalada sin conexión.");
+        explanation.setTextSize(18);
+        options.addView(explanation);
+        MaterialButton test = new MaterialButton(this);
+        test.setText("Probar voz");
+        test.setOnClickListener(view -> {
+            if (!ReminderSpeechService.play(this, "Así se escuchan tus recordatorios de AcompañAR. "
+                + ReminderSpeechText.format(true, "medicamento de ejemplo", "20:00", "Esta es una prueba de voz")))
+                android.widget.Toast.makeText(this, "No se pudo iniciar la lectura.", android.widget.Toast.LENGTH_LONG).show();
+        });
+        options.addView(test);
+        MaterialButton stop = new MaterialButton(this);
+        stop.setText("Detener lectura");
+        stop.setOnClickListener(view -> ReminderSpeechService.stop(this));
+        options.addView(stop);
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("Lectura en voz alta").setView(options)
+            .setNeutralButton("Configurar voz", (dialog, which) -> {
+                try { startActivity(new android.content.Intent("com.android.settings.TTS_SETTINGS")); }
+                catch (android.content.ActivityNotFoundException error) {
+                    android.widget.Toast.makeText(this, "Buscá Texto a voz en los ajustes del teléfono.", android.widget.Toast.LENGTH_LONG).show();
+                }
+            }).setPositiveButton("Listo", null).show();
     }
     private void configureNotifications() {
         if (android.os.Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
