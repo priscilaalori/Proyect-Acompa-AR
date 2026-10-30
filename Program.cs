@@ -64,6 +64,7 @@ if (!app.Environment.IsDevelopment())
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseAuthentication();
+app.UseMiddleware<MobileSessionMiddleware>();
 app.UseAuthorization();
 
 var summaries = new[]
@@ -224,6 +225,7 @@ if (app.Environment.IsDevelopment())
                 }, statusCode: 401);
             }
 
+            var propiedadesSesion = MobileSessionPolicy.LoginProperties(contexto);
             await contexto.SignInAsync(
                 CookieAuthenticationDefaults.AuthenticationScheme,
                 new ClaimsPrincipal(new ClaimsIdentity(new[]
@@ -231,7 +233,8 @@ if (app.Environment.IsDevelopment())
                     new Claim(ClaimTypes.NameIdentifier, lector.GetInt32(0).ToString()),
                     new Claim(ClaimTypes.Name, lector.GetString(1)),
                     new Claim(ClaimTypes.Role, lector.GetString(4))
-                }, CookieAuthenticationDefaults.AuthenticationScheme)));
+                }, CookieAuthenticationDefaults.AuthenticationScheme)), propiedadesSesion);
+            MobileSessionPolicy.WriteExpiration(contexto, propiedadesSesion);
 
             return Results.Ok(new
             {

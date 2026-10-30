@@ -38,6 +38,9 @@ public class MainActivity extends AppCompatActivity {
     private int careGeneration;
     private String careScreen = "HOME";
     private JSONObject carePanel;
+    private long foregroundActivityAt;
+    private final Map<String, TextView> menuBadges = new LinkedHashMap<>();
+    private final Map<String, MaterialButton> menuEntries = new LinkedHashMap<>();
     private final android.os.Handler careHandler = new android.os.Handler(android.os.Looper.getMainLooper());
     private final Runnable refreshCare = new Runnable() {
         @Override public void run() {
@@ -88,6 +91,8 @@ public class MainActivity extends AppCompatActivity {
         return view;
     }
     private void reset(String title, String description) {
+        menuBadges.clear();
+        menuEntries.clear();
         content.removeAllViews(); fields.clear(); birthDate = null;
         text(title, 26, true); text(description, 18, false);
         findViewById(R.id.main).post(() -> ((android.widget.ScrollView) findViewById(R.id.main)).scrollTo(0, 0));
@@ -158,6 +163,7 @@ public class MainActivity extends AppCompatActivity {
         emailField(); passwordField("password", "Contraseña", 1024);
         rememberSession = new com.google.android.material.checkbox.MaterialCheckBox(this);
         rememberSession.setText("Mantener mi sesión iniciada");
+        text("Marcá esta opción para responder con la app cerrada. La sesión dura una semana y se renueva al abrir la app o responder, con conexión.", 16, false);
         rememberSession.setTextSize(18);
         rememberSession.setMinHeight(dp(56));
         content.addView(rememberSession, new LinearLayout.LayoutParams(-1, -2));
@@ -241,6 +247,7 @@ public class MainActivity extends AppCompatActivity {
     }
     private void showWelcome(JSONObject user) {
         currentUser = user;
+        foregroundActivityAt = System.currentTimeMillis();
         careScreen = "HOME";
         reset("¡Hola, " + user.optString("nombre") + "!", "¿Qué querés consultar?");
         menuButton("Medicamentos", "Ver mis tomas de hoy y mañana", R.drawable.ic_pill, "MEDICAMENTO");
@@ -250,11 +257,81 @@ public class MainActivity extends AppCompatActivity {
             R.drawable.ic_invitation, "SOLICITUDES");
         menuButton("Compartir mi código", "Vincularme con quien me acompaña", R.drawable.ic_share,
             () -> shareLinkingCode(user));
-        button("Cerrar sesión", false, () -> { api.clearSession(); showLogin(); });
+        button("Configurar notificaciones", false, this::configureNotifications);
+        button("Lectura en voz alta", false, this::configureVoice);
+        button("Cerrar sesión", false, () -> { ReminderNotifications.clear(this); api.clearSession(); showLogin(); });
+        ReminderNotifications.activate(this, user);
+        if (android.os.Build.VERSION.SDK_INT >= 33
+            && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
+                != android.content.pm.PackageManager.PERMISSION_GRANTED
+            && !getPreferences(MODE_PRIVATE).getBoolean("notificationPermissionAsked", false)) {
+            getPreferences(MODE_PRIVATE).edit().putBoolean("notificationPermissionAsked", true).apply();
+            requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 910);
+        }
         careHandler.removeCallbacks(refreshCare);
+        updateMenuBadges();
+        careHandler.post(refreshCare);
     }
     private void menuButton(String title, String description, int icon, String screen) {
         menuButton(title, description, icon, () -> showCareScreen(screen));
+        MaterialButton entry = (MaterialButton) content.getChildAt(content.getChildCount() - 1);
+        LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) entry.getLayoutParams();
+        content.removeView(entry);
+        android.widget.FrameLayout container = new android.widget.FrameLayout(this);
+        content.addView(container, params);
+        container.addView(entry, new android.widget.FrameLayout.LayoutParams(-1, -2));
+        TextView badge = new TextView(this);
+        badge.setTextSize(18);
+        badge.setTypeface(null, android.graphics.Typeface.BOLD);
+        badge.setTextColor(android.graphics.Color.WHITE);
+        badge.setGravity(android.view.Gravity.CENTER);
+        badge.setMinWidth(dp(32));
+        badge.setMinHeight(dp(32));
+        badge.setPadding(dp(8), dp(2), dp(8), dp(2));
+        android.graphics.drawable.GradientDrawable background = new android.graphics.drawable.GradientDrawable();
+        background.setColor(android.graphics.Color.parseColor("#B3261E"));
+        background.setCornerRadius(dp(24));
+        badge.setBackground(background);
+        badge.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        badge.setVisibility(View.GONE);
+        android.widget.FrameLayout.LayoutParams badgeParams = new android.widget.FrameLayout.LayoutParams(-2, -2,
+            android.view.Gravity.TOP | android.view.Gravity.END);
+        badgeParams.topMargin = dp(8);
+        badgeParams.setMarginEnd(dp(8));
+        container.addView(badge, badgeParams);
+        entry.setTag(entry.getContentDescription());
+        menuEntries.put(screen, entry);
+        menuBadges.put(screen, badge);
+    }
+    private boolean isPendingReminder(JSONObject item) {
+        return item != null && item.isNull("cumplimiento") && item.optInt("disponible") == 1
+            && !"CANCELADO".equals(item.optString("estado"));
+    }
+    private void updateMenuBadges() {
+        if (carePanel == null || !"HOME".equals(careScreen)) return;
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        org.json.JSONArray reminders = carePanel.optJSONArray("recordatorios");
+        if (reminders != null) for (int i = 0; i < reminders.length(); i++) {
+            JSONObject item = reminders.optJSONObject(i);
+            if (isPendingReminder(item)) {
+                String type = item.optString("tipo");
+                counts.put(type, counts.getOrDefault(type, 0) + 1);
+            }
+        }
+        org.json.JSONArray invitations = carePanel.optJSONArray("solicitudes");
+        int requests = 0;
+        if (invitations != null) for (int i = 0; i < invitations.length(); i++) {
+            if (invitations.optJSONObject(i) != null) requests++;
+        }
+        counts.put("SOLICITUDES", requests);
+        for (Map.Entry<String, TextView> badge : menuBadges.entrySet()) {
+            int count = counts.getOrDefault(badge.getKey(), 0);
+            badge.getValue().setText(String.valueOf(count));
+            badge.getValue().setVisibility(count > 0 ? View.VISIBLE : View.GONE);
+            MaterialButton entry = menuEntries.get(badge.getKey());
+            entry.setContentDescription(entry.getTag().toString()
+                + (count > 0 ? ". " + count + (count == 1 ? " pendiente" : " pendientes") : ""));
+        }
     }
     private void menuButton(String title, String description, int icon, Runnable action) {
         MaterialButton entry = button(title + "\n" + description, false, action);
@@ -294,21 +371,31 @@ public class MainActivity extends AppCompatActivity {
         careHandler.post(refreshCare);
     }
     private void loadCare() {
-        if (loadingCare || currentUser == null || "HOME".equals(careScreen)) return;
+        if (loadingCare || currentUser == null) return;
         loadingCare = true;
         int generation = careGeneration;
+        long activityAt = foregroundActivityAt;
         executor.execute(() -> {
             try {
-                JSONObject panel = api.get("/api/mayor/panel");
+                JSONObject panel = api.getWithActivity("/api/mayor/panel", activityAt);
                 runOnUiThread(() -> {
                     loadingCare = false;
                     if (isDestroyed() || generation != careGeneration) return;
+                    if (foregroundActivityAt == activityAt) foregroundActivityAt = 0;
                     carePanel = panel;
+                    ReminderNotifications.update(this, panel);
+                    updateMenuBadges();
                     if (!"HOME".equals(careScreen)) renderCare(panel);
                 });
             } catch (Exception e) {
                 runOnUiThread(() -> {
                     loadingCare = false;
+                    if (generation == careGeneration && !isDestroyed()
+                        && e instanceof AuthClient.ApiException && ((AuthClient.ApiException) e).status == 401) {
+                        showLogin();
+                        message.setText("La sesión venció. Ingresá nuevamente para continuar.");
+                        return;
+                    }
                     if (isDestroyed() || generation != careGeneration || "HOME".equals(careScreen)) return;
                     careContent.removeAllViews();
                     text(e instanceof AuthClient.ApiException ? e.getMessage()
@@ -336,7 +423,7 @@ public class MainActivity extends AppCompatActivity {
         if (reminders != null) for (int i = 0; i < reminders.length(); i++) {
             JSONObject item = reminders.optJSONObject(i);
             if (item == null || !careScreen.equals(item.optString("tipo"))
-                || !CareVisibility.isCurrent(item.optString("fecha"), today)) continue;
+                || (!CareVisibility.isCurrent(item.optString("fecha"), today) && !isPendingReminder(item))) continue;
             visible++;
             LinearLayout card = careCard();
             boolean medicine = "MEDICAMENTO".equals(item.optString("tipo"));
@@ -358,6 +445,8 @@ public class MainActivity extends AppCompatActivity {
                 boolean done = "CUMPLIDO".equals(item.optString("cumplimiento"));
                 text(medicine ? (done ? "✓ Lo tomé" : "No lo tomé")
                     : (done ? "✓ Asistí" : "No asistí"), 20, true, card);
+            } else if (ReminderNotifications.isPending(this, item.optInt("idRecordatorio"))) {
+                text("Respuesta pendiente de envío. Se registrará cuando haya conexión y una sesión vigente.", 18, false, card);
             } else if (item.optInt("disponible") == 1) {
                 button(medicine ? "✓ Lo tomé" : "✓ Asistí", true,
                     () -> confirmCare(item, medicine, true), card);
@@ -434,6 +523,12 @@ public class MainActivity extends AppCompatActivity {
             .show();
     }
     private void saveCare(int id, boolean done) {
+        if (ReminderNotifications.isPending(this, id)) {
+            android.widget.Toast.makeText(this, "Ya hay una respuesta pendiente de envío para este recordatorio.",
+                android.widget.Toast.LENGTH_LONG).show();
+            loadCare();
+            return;
+        }
         saveResponse("/api/recordatorios/" + id + "/cumplimiento", done ? "CUMPLIDO" : "NO_CUMPLIDO", "Respuesta guardada.");
     }
     private void saveResponse(String path, String state, String successMessage) {
@@ -448,7 +543,7 @@ public class MainActivity extends AppCompatActivity {
         executor.execute(() -> {
             String error = null;
             try {
-                api.post(path, new JSONObject().put("estado", state));
+                api.postWithActivity(path, new JSONObject().put("estado", state), System.currentTimeMillis());
             } catch (Exception e) {
                 error = e instanceof AuthClient.ApiException ? e.getMessage()
                     : "No pudimos guardar la respuesta. Revisá tu conexión y volvé a intentar.";
@@ -457,7 +552,13 @@ public class MainActivity extends AppCompatActivity {
             runOnUiThread(() -> {
                 loadingCare = false;
                 if (isDestroyed() || generation != careGeneration) return;
-                if (result == null) carePanel = null;
+                if (result == null) {
+                    carePanel = null;
+                    if (path.startsWith("/api/recordatorios/")) {
+                        try { ReminderNotifications.completed(this, Integer.parseInt(path.split("/")[3])); }
+                        catch (NumberFormatException ignored) { }
+                    }
+                }
                 android.widget.Toast.makeText(this, result == null ? successMessage : result,
                     android.widget.Toast.LENGTH_LONG).show();
                 loadCare();
@@ -611,7 +712,74 @@ public class MainActivity extends AppCompatActivity {
     @Override protected void onStart() {
         super.onStart();
         careHandler.removeCallbacks(refreshCare);
-        if (currentUser != null && !"HOME".equals(careScreen)) careHandler.post(refreshCare);
+        if (currentUser != null) {
+            foregroundActivityAt = System.currentTimeMillis();
+            careHandler.post(refreshCare);
+        }
+    }
+    private void configureVoice() {
+        LinearLayout options = new LinearLayout(this);
+        options.setOrientation(LinearLayout.VERTICAL);
+        int padding = (int) (24 * getResources().getDisplayMetrics().density);
+        options.setPadding(padding, padding / 2, padding, padding / 2);
+        com.google.android.material.materialswitch.MaterialSwitch enabled =
+            new com.google.android.material.materialswitch.MaterialSwitch(this);
+        enabled.setText("Leer recordatorios en voz alta");
+        enabled.setTextSize(20);
+        enabled.setChecked(ReminderSpeechService.enabled(this));
+        enabled.setOnCheckedChangeListener((view, checked) -> ReminderSpeechService.setEnabled(this, checked));
+        options.addView(enabled);
+        TextView explanation = new TextView(this);
+        explanation.setText("Lee el nombre, la hora y los detalles de tus medicamentos y turnos cuando llega el aviso. Usá el volumen de alarmas. Respeta el modo silencio y No molestar. Necesitás una voz en español instalada sin conexión.");
+        explanation.setTextSize(18);
+        options.addView(explanation);
+        MaterialButton test = new MaterialButton(this);
+        test.setText("Probar voz");
+        test.setOnClickListener(view -> {
+            if (!ReminderSpeechService.play(this, "Así se escuchan tus recordatorios de AcompañAR. "
+                + ReminderSpeechText.format(true, "medicamento de ejemplo", "20:00", "Esta es una prueba de voz")))
+                android.widget.Toast.makeText(this, "No se pudo iniciar la lectura.", android.widget.Toast.LENGTH_LONG).show();
+        });
+        options.addView(test);
+        MaterialButton stop = new MaterialButton(this);
+        stop.setText("Detener lectura");
+        stop.setOnClickListener(view -> ReminderSpeechService.stop(this));
+        options.addView(stop);
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("Lectura en voz alta").setView(options)
+            .setNeutralButton("Configurar voz", (dialog, which) -> {
+                try { startActivity(new android.content.Intent("com.android.settings.TTS_SETTINGS")); }
+                catch (android.content.ActivityNotFoundException error) {
+                    android.widget.Toast.makeText(this, "Buscá Texto a voz en los ajustes del teléfono.", android.widget.Toast.LENGTH_LONG).show();
+                }
+            }).setPositiveButton("Listo", null).show();
+    }
+    private void configureNotifications() {
+        if (android.os.Build.VERSION.SDK_INT >= 33 && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
+            != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 910);
+            return;
+        }
+        if (android.os.Build.VERSION.SDK_INT >= 31
+            && !getSystemService(android.app.AlarmManager.class).canScheduleExactAlarms()) {
+            new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle("Avisos a la hora indicada")
+                .setMessage("Permití alarmas y recordatorios para recibir los avisos a la hora programada. Sin este permiso pueden demorarse. Para enviar respuestas con la app cerrada, ingresá con Mantener mi sesión iniciada. Si la sesión vence, ingresá otra vez con la misma cuenta.")
+                .setNegativeButton("Más tarde", null)
+                .setPositiveButton("Configurar", (dialog, which) -> startActivity(new android.content.Intent(
+                    android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                    android.net.Uri.parse("package:" + getPackageName())))).show();
+        } else {
+            startActivity(new android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, getPackageName()));
+        }
+    }
+    @Override protected void onResume() {
+        super.onResume();
+        if (currentUser != null) {
+            ReminderNotifications.restore(this);
+            ReminderSyncService.schedule(this, false);
+        }
     }
     @Override protected void onStop() {
         careHandler.removeCallbacks(refreshCare);
