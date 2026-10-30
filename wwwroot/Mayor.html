@@ -1,0 +1,69 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi espacio | AcompañAR</title>
+    <link rel="stylesheet" href="css/Style.css">
+</head>
+<body>
+    <main class="panel-mayor">
+
+        <header class="encabezado-mayor">
+            <h1>AcompañAR</h1>
+            <p>Tu espacio personal</p>
+
+            <button type="button"
+                    id="btnCerrarSesion"
+                    class="boton-salir-mayor">
+                Cerrar sesión
+            </button>
+        </header>
+
+        <section class="bienvenida-mayor">
+            <h2 id="saludoMayor">¡Hola!</h2>
+            <p>Acá podés consultar tu información personal.</p>
+        </section>
+        <!-- CONTACTOS DE CONFIANZA -->
+        <section class="seccion-mayor"
+                 aria-labelledby="tituloContactosMayor">
+
+            <h2 id="tituloContactosMayor">Mis contactos importantes</h2>
+
+            <div id="listaContactosMayor" aria-live="polite">
+                <p>Cargando tus contactos...</p>
+            </div>
+
+        </section>
+
+        <!-- TURNOS MÉDICOS -->
+        <section class="seccion-mayor"
+                 aria-labelledby="tituloTurnosMayor">
+
+            <h2 id="tituloTurnosMayor">Mis turnos médicos</h2>
+
+            <div id="listaTurnosMayor" aria-live="polite">
+                <p>Cargando tus turnos...</p>
+            </div>
+
+        </section>
+
+        <!-- RECORDATORIOS -->
+        <section class="seccion-mayor"
+                 aria-labelledby="tituloRecordatoriosMayor">
+
+            <h2 id="tituloRecordatoriosMayor">Mis recordatorios</h2>
+
+            <div id="listaRecordatoriosMayor" aria-live="polite">
+                <p>Cargando tus recordatorios...</p>
+            </div>
+
+        </section>
+
+
+
+    </main>
+
+    <script src="js/Mayor.js"></script>
+</body>
+</html>

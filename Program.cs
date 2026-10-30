@@ -1309,6 +1309,55 @@ adminApi.MapGet("/usuarios", async (
     }
 });
 
+adminApi.MapGet("/usuarios/buscar", async (
+    string? tipo,
+    string? buscar,
+    HttpContext contexto,
+    VinculacionRepository repositorio,
+    CancellationToken ct) =>
+{
+    if (!contexto.User.IsInRole("ADMIN"))
+        return Results.Forbid();
+
+    tipo = tipo?.Trim().ToUpperInvariant();
+    buscar = buscar?.Trim();
+
+    if (tipo != "MAYOR" && tipo != "ACOMPANANTE")
+        return Results.BadRequest(new
+        {
+            mensaje = "El tipo de usuario no es válido."
+        });
+
+    if (string.IsNullOrWhiteSpace(buscar)
+        || buscar.Length > 100
+        || (buscar.Length < 2 && !int.TryParse(buscar, out _)))
+        return Results.BadRequest(new
+        {
+            mensaje = "Ingresá al menos dos caracteres o un ID."
+        });
+
+    if (!repositorio.ConexionConfigurada)
+        return Results.Problem(
+            title: "Falta configurar MySQL.",
+            statusCode: 500);
+
+    try
+    {
+        var usuarios = await repositorio.BuscarUsuariosAsync(
+            tipo, buscar, ct);
+
+        return Results.Ok(usuarios);
+    }
+    catch (MySqlException ex)
+    {
+        app.Logger.LogError(ex, "Error al buscar usuarios.");
+
+        return Results.Problem(
+            title: "No se pudieron buscar los usuarios.",
+            statusCode: 503);
+    }
+});
+
 adminApi.MapGet("/vinculaciones", async (
     HttpContext contexto,
     VinculacionRepository repositorio,
@@ -1328,6 +1377,104 @@ adminApi.MapGet("/vinculaciones", async (
     {
         app.Logger.LogError(ex, "No se pudieron consultar las vinculaciones.");
         return Results.Problem(title: "No se pudieron consultar las vinculaciones. Intentá nuevamente.", statusCode: 503);
+    }
+});
+
+adminApi.MapGet("/vinculaciones/buscar", async (
+    string? buscar,
+    string? tipoBusqueda,
+    string? estado,
+    int? pagina,
+    HttpContext contexto,
+    VinculacionRepository repositorio,
+    CancellationToken ct) =>
+{
+    if (!contexto.User.IsInRole("ADMIN"))
+        return Results.Forbid();
+
+    buscar = buscar?.Trim() ?? "";
+    estado = estado?.Trim().ToUpperInvariant() ?? "";
+
+    tipoBusqueda = tipoBusqueda?.Trim().ToLowerInvariant() ?? "nombre";
+
+    if (tipoBusqueda is not ("nombre" or "vinculacion"
+        or "mayor" or "acompanante"))
+    {
+        return Results.BadRequest(new
+        {
+            mensaje = "El tipo de búsqueda no es válido."
+        });
+    }
+
+    if (tipoBusqueda != "nombre" && buscar != ""
+        && (!int.TryParse(buscar, out int id) || id <= 0))
+    {
+        return Results.BadRequest(new
+        {
+            mensaje = "Ingresá un ID numérico válido."
+        });
+    }
+
+    int numeroPagina = pagina ?? 1;
+    const int limite = 10;
+
+    if (buscar.Length > 100)
+        return Results.BadRequest(new
+        {
+            mensaje = "La búsqueda es demasiado larga."
+        });
+
+    if (estado != "" &&
+        estado != "PENDIENTE" &&
+        estado != "ACEPTADA" &&
+        estado != "RECHAZADA")
+        return Results.BadRequest(new
+        {
+            mensaje = "El estado ingresado no es válido."
+        });
+
+    if (numeroPagina < 1 || numeroPagina > 1000000)
+        return Results.BadRequest(new
+        {
+            mensaje = "El número de página no es válido."
+        });
+
+    if (!repositorio.ConexionConfigurada)
+        return Results.Problem(
+            title: "Falta configurar la conexión con MySQL.",
+            statusCode: 500);
+
+    try
+    {
+        var (vinculaciones, total) =
+            await repositorio.BuscarVinculacionesAsync(
+                buscar,
+                tipoBusqueda,
+                estado,
+                numeroPagina,
+                limite,
+                ct);
+
+        contexto.Response.Headers.CacheControl = "no-store";
+
+        return Results.Ok(new
+        {
+            vinculaciones,
+            total,
+            pagina = numeroPagina,
+            limite,
+            totalPaginas = (long)Math.Ceiling(total / (double)limite)
+        });
+    }
+    catch (MySqlException ex)
+    {
+        app.Logger.LogError(
+            ex,
+            "No se pudieron buscar las vinculaciones.");
+
+        return Results.Problem(
+            title: "No se pudieron consultar las vinculaciones.",
+            statusCode: 503);
     }
 });
 
@@ -1464,6 +1611,156 @@ adminApi.MapDelete("/vinculaciones/{idVinculacion:int}", async (
         return Results.Problem(title: "No se pudo eliminar la vinculación. Intentá nuevamente.", statusCode: 503);
     }
 });
+
+app.MapGet("/api/mayor/panel-web", async (
+    HttpContext contexto,
+    ContactoRepository contactoRepository,
+    CancellationToken ct) =>
+{
+    contexto.Response.Headers.CacheControl = "no-store";
+
+    if (!contexto.User.IsInRole("MAYOR"))
+        return Results.Forbid();
+
+    if (!int.TryParse(
+        contexto.User.FindFirstValue(ClaimTypes.NameIdentifier),
+        out var idMayor))
+        return Results.Unauthorized();
+
+    var cadena = app.Configuration.GetConnectionString("MySql");
+
+    if (string.IsNullOrWhiteSpace(cadena))
+        return Results.Problem(
+            title: "Falta configurar la conexión con MySQL.",
+            statusCode: 500);
+
+    try
+    {
+        using var conexion = new MySqlConnection(cadena);
+        await conexion.OpenAsync(ct);
+
+        // Datos de la persona mayor
+        using var comando = new MySqlCommand("""
+            SELECT nombre, apellido
+            FROM usuario
+            WHERE id_usuario = @idMayor
+              AND tipo_usuario = 'MAYOR'
+              AND estado = TRUE
+            LIMIT 1;
+            """, conexion);
+
+        comando.Parameters.Add("@idMayor", MySqlDbType.Int32)
+            .Value = idMayor;
+
+        string nombre;
+        string apellido;
+
+        using (var lector = await comando.ExecuteReaderAsync(ct))
+        {
+            if (!await lector.ReadAsync(ct))
+                return Results.NotFound(new
+                {
+                    mensaje = "No encontramos tu usuario."
+                });
+
+            nombre = lector.GetString(0);
+            apellido = lector.GetString(1);
+        }
+
+        // Turnos médicos
+        comando.CommandText = """
+            SELECT especialidad, nombre_medico,
+                   DATE_FORMAT(fecha, '%Y-%m-%d'),
+                   TIME_FORMAT(hora, '%H:%i'),
+                   direccion, motivo, estado
+            FROM turno_medico
+            WHERE id_mayor = @idMayor
+            ORDER BY fecha, hora;
+            """;
+
+        var turnos = new List<object>();
+
+        using (var lector = await comando.ExecuteReaderAsync(ct))
+        {
+            while (await lector.ReadAsync(ct))
+            {
+                turnos.Add(new
+                {
+                    especialidad = lector.GetString(0),
+                    medico = lector.GetString(1),
+                    fecha = lector.GetString(2),
+                    hora = lector.GetString(3),
+                    direccion = lector.GetString(4),
+                    motivo = lector.IsDBNull(5)
+                        ? null : lector.GetString(5),
+                    estado = lector.GetString(6)
+                });
+            }
+        }
+
+        // Recordatorios
+        comando.CommandText = """
+            SELECT COALESCE(m.nombre, t.especialidad),
+                   CASE
+                       WHEN r.id_medicamento IS NOT NULL
+                           THEN 'Medicamento'
+                       ELSE 'Turno médico'
+                   END,
+                   DATE_FORMAT(r.fecha_hora, '%Y-%m-%d'),
+                   TIME_FORMAT(r.fecha_hora, '%H:%i'),
+                   r.estado
+            FROM recordatorio r
+            LEFT JOIN medicamento m
+                ON m.id_medicamento = r.id_medicamento
+            LEFT JOIN turno_medico t
+                ON t.id_turno = r.id_turno
+            WHERE (m.id_mayor = @idMayor OR t.id_mayor = @idMayor)
+              AND r.fecha_hora >= CURDATE()
+              AND r.fecha_hora < DATE_ADD(CURDATE(), INTERVAL 2 DAY)
+              AND r.estado <> 'CANCELADO'
+            ORDER BY r.fecha_hora;
+            """;
+
+        var recordatorios = new List<object>();
+
+        using (var lector = await comando.ExecuteReaderAsync(ct))
+        {
+            while (await lector.ReadAsync(ct))
+            {
+                recordatorios.Add(new
+                {
+                    nombre = lector.GetString(0),
+                    tipo = lector.GetString(1),
+                    fecha = lector.GetString(2),
+                    hora = lector.GetString(3),
+                    estado = lector.GetString(4)
+                });
+            }
+        }
+
+        // Contactos de confianza
+        var contactos = await contactoRepository
+            .ObtenerContactosAsync(idMayor, ct);
+
+        return Results.Ok(new
+        {
+            nombre,
+            apellido,
+            turnos,
+            recordatorios,
+            contactos
+        });
+    }
+    catch (MySqlException ex)
+    {
+        app.Logger.LogError(
+            ex, "No se pudo cargar el panel de la persona mayor.");
+
+        return Results.Problem(
+            title : "No pudimos cargar tu información.",
+            statusCode: 503);
+    }
+}).RequireAuthorization().WithTags("Persona mayor");
 
 app.Run();
 

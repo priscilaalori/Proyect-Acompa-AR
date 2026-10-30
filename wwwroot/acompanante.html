@@ -7,199 +7,276 @@
     <link rel="stylesheet" href="css/Style.css">
 </head>
 <body>
-    <main class="panel-container">
+    <main class="panel-container panel-acompanante">
         <header class="panel-header">
+            <button id="abrirMenu" class="panel-hamburguesa" type="button" aria-label="Abrir menú" aria-expanded="false">☰</button>
             <div class="logo"><h1>💜 AcompañAR</h1><p>Recordar. Acompañar. Proteger.</p></div>
+            <span id="saludo">Mi acompañamiento</span>
             <button id="cerrarSesion" class="panel-boton">Cerrar sesión</button>
         </header>
-        <section class="panel-bienvenida">
-            <h2 id="saludo">Mi acompañamiento</h2>
-            <p id="personaMayor">Consultando tu adulto mayor vinculado…</p>
-            <p id="selectorMayor" hidden>
-                <label for="mayorElegido">Estás acompañando a</label>
-                <select id="mayorElegido"></select>
-            </p>
-            <p id="panelMensaje" role="status" aria-live="polite">Cargando información…</p>
-            <button id="reintentar" class="panel-boton" hidden>Reintentar</button>
-        </section>
-        <div id="configuracion" class="panel-grid" hidden>
-            <section class="panel-seccion" aria-labelledby="tituloMedicamentos">
-                <h2 id="tituloMedicamentos">💊 Medicamentos</h2>
-                <button id="nuevoMedicamento" class="panel-boton" type="button">Agregar medicamento</button>
-                <p id="medicamentoMensaje" role="status" aria-live="polite"></p>
-                <form id="medicamentoForm" class="medicamento-form" hidden>
-                    <h3 id="tituloFormulario">Agregar medicamento</h3>
-                    <label for="medNombre">Nombre</label>
-                    <input id="medNombre" required maxlength="100" autocomplete="off">
-                    <label for="medDosis">Dosis indicada</label>
-                    <input id="medDosis" required maxlength="50" placeholder="Ej.: 1 comprimido de 50 mg">
-                    <label for="medFrecuencia">Repetición</label>
-                    <select id="medFrecuencia" required>
-                        <option value="DIARIA">Todos los días</option>
-                        <option value="HORAS">Cada cierta cantidad de horas</option>
-                        <option value="DIAS">Cada cierta cantidad de días</option>
-                        <option value="UNICA">Una sola toma</option>
-                        <option value="LEGADA" disabled>Frecuencia anterior: elegí una opción para editar</option>
-                    </select>
-                    <div id="intervaloGrupo" hidden>
-                        <label for="medIntervalo" id="intervaloEtiqueta">Cantidad de horas</label>
-                        <input id="medIntervalo" type="number" min="1" max="168" step="1">
+        <div class="panel-layout">
+            <nav id="menu" class="panel-menu" aria-label="Secciones">
+                <div class="panel-perfil">
+                    <span id="avatarMayor" class="panel-avatar" aria-hidden="true">?</span>
+                    <div>
+                        <p id="personaMayor">Consultando tu adulto mayor vinculado…</p>
+                        <p class="panel-perfil-sub">Persona que acompañás</p>
                     </div>
-                    <label for="medHorario">Horario de la primera toma</label>
-                    <input id="medHorario" type="time" required>
-                    <label for="medInicio">Fecha de inicio</label>
-                    <input id="medInicio" type="date" required>
-                    <div id="finGrupo">
-                        <label for="medFin">Fecha de fin (opcional)</label>
-                        <input id="medFin" type="date">
-                    </div>
-                    <p id="resumenFrecuencia" aria-live="polite"></p>
-                    <p>Configurá la pauta indicada por el profesional. Guardar la frecuencia no activa el envío automático de avisos.</p>
-                    <div class="medicamento-acciones">
-                        <button type="submit" class="panel-boton">Guardar</button>
-                        <button id="cancelarMedicamento" type="button" class="panel-boton">Cancelar</button>
-                    </div>
-                </form>
-                <ul id="medicamentos" class="panel-lista"></ul>
-                <h3>Historial de tomas únicas</h3>
-                <p>Medicamentos cuya única toma ya fue respondida. Se conservan solo para consulta.</p>
-                <ul id="historialMedicamentos" class="panel-lista"></ul>
-            </section>
-            <section class="panel-seccion" aria-labelledby="tituloRecordatorios">
-                <h2 id="tituloRecordatorios">🔔 Recordatorios</h2>
-                <form id="recordatoriosForm" class="medicamento-form">
-                    <label for="recordatoriosDesde">Desde</label>
-                    <input id="recordatoriosDesde" type="date" required>
-                    <label for="recordatoriosHasta">Hasta</label>
-                    <input id="recordatoriosHasta" type="date" required>
-                    <button type="submit" class="panel-boton">Buscar pendientes</button>
-                </form>
-                <p id="recordatoriosMensaje" role="status" aria-live="polite"></p>
-                <ul id="recordatorios" class="panel-lista"></ul>
-            </section>
+                    <button id="cerrarMenu" class="panel-cerrar-menu" type="button" aria-label="Cerrar menú">✕</button>
+                </div>
+                <p id="selectorMayor" hidden>
+                    <label for="mayorElegido">Cambiar de persona</label>
+                    <select id="mayorElegido"></select>
+                </p>
+                <button type="button" class="panel-nav" data-seccion="alertas"><span aria-hidden="true">⚠️</span> Alertas <span id="cantidadAlertas" class="panel-contador panel-contador-alerta"></span></button>
+                <button type="button" class="panel-nav" data-seccion="recordatorios"><span aria-hidden="true">🔔</span> Recordatorios <span id="cantidadRecordatorios" class="panel-contador"></span></button>
+                <button type="button" class="panel-nav" data-seccion="medicamentos"><span aria-hidden="true">💊</span> Medicamentos <span id="cantidadMedicamentos" class="panel-contador"></span></button>
+                <button type="button" class="panel-nav" data-seccion="turnos"><span aria-hidden="true">📅</span> Turnos <span id="cantidadTurnos" class="panel-contador"></span></button>
+                <button type="button" class="panel-nav" data-seccion="contactos"><span aria-hidden="true">📞</span> Contactos</button>
+                <button type="button" class="panel-nav" data-seccion="vinculacion"><span aria-hidden="true">🔗</span> Vincular</button>
+            </nav>
+            <div class="panel-contenido">
+                <div id="bannerAlertas" class="panel-banner" role="status" hidden>
+                    <p><strong>Alertas:</strong> <span id="textoAlertas"></span>.</p>
+                    <button id="verAlertas" type="button" class="panel-boton">Ver alertas</button>
+                </div>
+                <p id="panelMensaje" role="status" aria-live="polite">Cargando información…</p>
+                <button id="reintentar" class="panel-boton" hidden>Reintentar</button>
+                <div id="configuracion" hidden>
+                    <section class="panel-seccion" data-seccion="alertas" aria-labelledby="tituloAlertas">
+                        <div class="panel-encabezado">
+                            <div>
+                                <h2 id="tituloAlertas">⚠️ Alertas</h2>
+                                <p class="panel-bajada">Lo que no confirmó a tiempo o no cumplió, en las últimas 24 horas.</p>
+                            </div>
+                        </div>
+                        <p class="panel-espera">
+                            <label for="minutosEspera">Avisarme si no confirma en</label>
+                            <select id="minutosEspera">
+                                <option value="15">15 minutos</option>
+                                <option value="20">20 minutos</option>
+                                <option value="30">30 minutos</option>
+                                <option value="60">1 hora</option>
+                            </select>
+                        </p>
+                        <ul id="alertas" class="panel-lista"></ul>
+                    </section>
+                    <section class="panel-seccion" data-seccion="recordatorios" aria-labelledby="tituloRecordatorios">
+                        <div class="panel-encabezado">
+                            <div>
+                                <h2 id="tituloRecordatorios">🔔 Recordatorios</h2>
+                                <p class="panel-bajada">Lo que tiene que hacer y si se cumplió.</p>
+                            </div>
+                        </div>
+                        <div class="panel-atajos">
+                            <button id="verHoy" type="button" class="panel-pestana" aria-pressed="false">Hoy (<span id="cantidadHoy">0</span>)</button>
+                            <button id="verManana" type="button" class="panel-pestana" aria-pressed="false">Mañana (<span id="cantidadManana">0</span>)</button>
+                            <button id="verFiltros" type="button" class="panel-boton" aria-expanded="false">Filtros</button>
+                        </div>
+                        <div id="filtros" class="panel-filtros" hidden>
+                            <label class="panel-campo" for="recordatoriosDesde">
+                                <span>Desde</span>
+                                <input id="recordatoriosDesde" type="date" required>
+                            </label>
+                            <label class="panel-campo" for="recordatoriosHasta">
+                                <span>Hasta</span>
+                                <input id="recordatoriosHasta" type="date" required>
+                            </label>
+                            <label class="panel-campo" for="recordatoriosEstado">
+                                <span>Estado</span>
+                                <select id="recordatoriosEstado">
+                                    <option value="">Todos</option>
+                                    <option value="PENDIENTE">Pendiente</option>
+                                    <option value="CUMPLIDO">Cumplido</option>
+                                    <option value="NO_CUMPLIDO">No cumplido</option>
+                                </select>
+                            </label>
+                            <div class="panel-campo panel-campo-tipo">
+                                <span>Tipo</span>
+                                <div class="panel-chips">
+                                    <button type="button" class="panel-chip" data-tipo="" aria-pressed="true">Todos</button>
+                                    <button type="button" class="panel-chip" data-tipo="Medicamento" aria-pressed="false">Medicamentos</button>
+                                    <button type="button" class="panel-chip" data-tipo="Turno médico" aria-pressed="false">Turnos</button>
+                                </div>
+                            </div>
+                        </div>
+                        <p id="recordatoriosMensaje" role="status" aria-live="polite"></p>
+                        <div id="recordatorios"></div>
+                    </section>
+                    <section class="panel-seccion" data-seccion="medicamentos" aria-labelledby="tituloMedicamentos">
+                        <div class="panel-encabezado">
+                            <div>
+                                <h2 id="tituloMedicamentos">💊 Medicamentos</h2>
+                                <p class="panel-bajada">La pauta que indicó el profesional.</p>
+                            </div>
+                            <button id="nuevoMedicamento" class="panel-boton" type="button">Agregar medicamento</button>
+                        </div>
+                        <p id="medicamentoMensaje" role="status" aria-live="polite"></p>
+                        <form id="medicamentoForm" class="medicamento-form panel-modal" hidden>
+                            <h3 id="tituloFormulario">Agregar medicamento</h3>
+                            <label for="medNombre">Nombre</label>
+                            <input id="medNombre" required maxlength="100" autocomplete="off">
+                            <label for="medDosis">Dosis indicada</label>
+                            <input id="medDosis" required maxlength="50" placeholder="Ej.: 1 comprimido de 50 mg">
+                            <label for="medFrecuencia">Repetición</label>
+                            <select id="medFrecuencia" required>
+                                <option value="DIARIA">Todos los días</option>
+                                <option value="HORAS">Cada cierta cantidad de horas</option>
+                                <option value="DIAS">Cada cierta cantidad de días</option>
+                                <option value="UNICA">Una sola toma</option>
+                                <option value="LEGADA" disabled>Frecuencia anterior: elegí una opción para editar</option>
+                            </select>
+                            <div id="intervaloGrupo" hidden>
+                                <label for="medIntervalo" id="intervaloEtiqueta">Cantidad de horas</label>
+                                <input id="medIntervalo" type="number" min="1" max="168" step="1">
+                            </div>
+                            <label for="medHorario">Horario de la primera toma</label>
+                            <input id="medHorario" type="time" required>
+                            <label for="medInicio">Fecha de inicio</label>
+                            <input id="medInicio" type="date" required>
+                            <div id="finGrupo">
+                                <label for="medFin">Fecha de fin (opcional)</label>
+                                <input id="medFin" type="date">
+                            </div>
+                            <p id="resumenFrecuencia" aria-live="polite"></p>
+                            <p>Configurá la pauta indicada por el profesional. Guardar la frecuencia no activa el envío automático de avisos.</p>
+                            <div class="medicamento-acciones">
+                                <button type="submit" class="panel-boton">Guardar</button>
+                                <button id="cancelarMedicamento" type="button" class="panel-boton">Cancelar</button>
+                            </div>
+                        </form>
+                        <ul id="medicamentos" class="panel-lista"></ul>
+                        <h3>Historial de tomas únicas</h3>
+                        <p>Medicamentos cuya única toma ya fue respondida. Se conservan solo para consulta.</p>
+                        <ul id="historialMedicamentos" class="panel-lista"></ul>
+                    </section>
+                    <section class="panel-seccion" data-seccion="turnos" aria-labelledby="tituloTurnos">
+                        <div class="panel-encabezado">
+                            <div>
+                                <h2 id="tituloTurnos">📅 Turnos médicos</h2>
+                                <p class="panel-bajada">Sus turnos médicos.</p>
+                            </div>
+                            <button type="button" id="nuevoTurno" class="panel-boton">
+                                Agregar turno médico
+                            </button>
+                        </div>
+                        <p id="turnoMensaje" role="status" aria-live="polite"></p>
+                        <form id="turnoForm" class="panel-modal" hidden>
+                            <h3 id="tituloFormularioTurno">Agregar turno médico</h3>
 
+                            <label for="turnoEspecialidad">Especialidad</label>
+                            <input type="text"
+                                   id="turnoEspecialidad"
+                                   maxlength="100"
+                                   required>
 
+                            <label for="turnoMedico">Nombre del profesional</label>
+                            <input type="text"
+                                   id="turnoMedico"
+                                   maxlength="150"
+                                   required>
 
-            <section class="panel-seccion" aria-labelledby="tituloTurnos">
-                <h2 id="tituloTurnos">📅 Turnos médicos</h2>
+                            <label for="turnoFecha">Fecha</label>
+                            <input type="date"
+                                   id="turnoFecha"
+                                   required>
 
-                <button type="button" id="nuevoTurno" class="panel-boton">
-                    Agregar turno médico
-                </button>
+                            <label for="turnoHora">Hora</label>
+                            <input type="time"
+                                   id="turnoHora"
+                                   required>
 
-                <p id="turnoMensaje" role="status" aria-live="polite"></p>
+                            <label for="turnoDireccion">Dirección</label>
+                            <input type="text"
+                                   id="turnoDireccion"
+                                   maxlength="200"
+                                   required>
 
-                <form id="turnoForm" hidden>
-                    <h3 id="tituloFormularioTurno">Agregar turno médico</h3>
+                            <label for="turnoMotivo">Motivo (opcional)</label>
+                            <textarea id="turnoMotivo"
+                                      maxlength="255"
+                                      rows="3"></textarea>
 
-                    <label for="turnoEspecialidad">Especialidad</label>
-                    <input type="text"
-                           id="turnoEspecialidad"
-                           maxlength="100"
-                           required>
+                            <button type="submit" class="panel-boton">
+                                Guardar turno
+                            </button>
 
-                    <label for="turnoMedico">Nombre del profesional</label>
-                    <input type="text"
-                           id="turnoMedico"
-                           maxlength="150"
-                           required>
+                            <button type="button" id="cancelarTurno" class="panel-boton">
+                                Cancelar
+                            </button>
+                        </form>
 
-                    <label for="turnoFecha">Fecha</label>
-                    <input type="date"
-                           id="turnoFecha"
-                           required>
+                        <ul id="turnos" class="panel-lista"></ul>
+                    </section>
+                    <section class="panel-seccion" data-seccion="contactos" aria-labelledby="tituloContactos">
+                        <div class="panel-encabezado">
+                            <div>
+                                <h2 id="tituloContactos">📞 Contactos de confianza</h2>
+                                <p class="panel-bajada">A quién avisar si hace falta.</p>
+                            </div>
+                            <button id="nuevoContacto" class="panel-boton" type="button">
+                                Agregar contacto
+                            </button>
+                        </div>
 
-                    <label for="turnoHora">Hora</label>
-                    <input type="time"
-                           id="turnoHora"
-                           required>
+                        <p id="contactosMensaje" role="status" aria-live="polite"></p>
 
-                    <label for="turnoDireccion">Dirección</label>
-                    <input type="text"
-                           id="turnoDireccion"
-                           maxlength="200"
-                           required>
+                        <form id="contactoForm" class="medicamento-form panel-modal" hidden>
+                            <h3 id="tituloFormularioContacto">Agregar contacto</h3>
 
-                    <label for="turnoMotivo">Motivo (opcional)</label>
-                    <textarea id="turnoMotivo"
-                              maxlength="255"
-                              rows="3"></textarea>
+                            <label for="contactoNombre">Nombre</label>
+                            <input id="contactoNombre" type="text"
+                                   maxlength="100" required>
 
-                    <button type="submit" class="panel-boton">
-                        Guardar turno
-                    </button>
+                            <label for="contactoApellido">Apellido (opcional)</label>
+                            <input id="contactoApellido" type="text"
+                                   maxlength="100">
 
-                    <button type="button" id="cancelarTurno" class="panel-boton">
-                        Cancelar
-                    </button>
-                </form>
+                            <label for="contactoTelefono">Teléfono</label>
+                            <input id="contactoTelefono" type="tel"
+                                   maxlength="30" required
+                                   placeholder="Ej.: 1155551234">
 
-                <ul id="turnos" class="panel-lista"></ul>
-            </section>
+                            <label for="contactoVinculo">Tipo de vínculo</label>
+                            <input id="contactoVinculo" type="text"
+                                   maxlength="50" required
+                                   placeholder="Ej.: Hija, amigo, cuidador">
 
+                            <div class="medicamento-acciones">
+                                <button type="submit" class="panel-boton">
+                                    Guardar
+                                </button>
 
-            <section class="panel-seccion" aria-labelledby="tituloContactos">
-                <h2 id="tituloContactos">📞 Contactos de confianza</h2>
+                                <button id="cancelarContacto" type="button"
+                                        class="panel-boton">
+                                    Cancelar
+                                </button>
+                            </div>
+                        </form>
 
-                <button id="nuevoContacto" class="panel-boton" type="button">
-                    Agregar contacto
-                </button>
-
-                <p id="contactosMensaje" role="status" aria-live="polite"></p>
-
-                <form id="contactoForm" class="medicamento-form" hidden>
-                    <h3 id="tituloFormularioContacto">Agregar contacto</h3>
-
-                    <label for="contactoNombre">Nombre</label>
-                    <input id="contactoNombre" type="text"
-                           maxlength="100" required>
-
-                    <label for="contactoApellido">Apellido (opcional)</label>
-                    <input id="contactoApellido" type="text"
-                           maxlength="100">
-
-                    <label for="contactoTelefono">Teléfono</label>
-                    <input id="contactoTelefono" type="tel"
-                           maxlength="30" required
-                           placeholder="Ej.: 1155551234">
-
-                    <label for="contactoVinculo">Tipo de vínculo</label>
-                    <input id="contactoVinculo" type="text"
-                           maxlength="50" required
-                           placeholder="Ej.: Hija, amigo, cuidador">
-
-                    <div class="medicamento-acciones">
-                        <button type="submit" class="panel-boton">
-                            Guardar
-                        </button>
-
-                        <button id="cancelarContacto" type="button"
-                                class="panel-boton">
-                            Cancelar
-                        </button>
-                    </div>
-                </form>
-
-                <ul id="contactos" class="panel-lista"></ul>
-            </section>
+                        <ul id="contactos" class="panel-lista"></ul>
+                    </section>
+                </div>
+                <section id="vinculacion" class="panel-seccion panel-vinculacion" data-seccion="vinculacion" aria-labelledby="tituloVinculacion" hidden>
+                    <h2 id="tituloVinculacion">🔗 Vincular adulto mayor</h2>
+                    <p>Pedile su código de vinculación. Lo encuentra en la app, en «Compartir mi código».</p>
+                    <form id="vinculacionForm" class="medicamento-form">
+                        <label for="vinculacionCodigo">Código de vinculación</label>
+                        <input id="vinculacionCodigo" required maxlength="10" autocomplete="off" placeholder="Ej.: MAY-000123">
+                        <label for="vinculacionTipo">Tipo de vínculo</label>
+                        <select id="vinculacionTipo" required>
+                            <option value="Familiar">Familiar</option>
+                            <option value="Cuidador">Cuidador</option>
+                        </select>
+                        <button type="submit" class="panel-boton">Enviar solicitud</button>
+                    </form>
+                    <p id="vinculacionMensaje" role="status" aria-live="polite"></p>
+                    <h3>Solicitudes enviadas</h3>
+                    <ul id="solicitudes" class="panel-lista"></ul>
+                </section>
+            </div>
         </div>
-        <section id="vinculacion" class="panel-seccion panel-vinculacion" aria-labelledby="tituloVinculacion" hidden>
-            <h2 id="tituloVinculacion">🔗 Vincular adulto mayor</h2>
-            <p>Pedile su código de vinculación. Lo encuentra en la app, en «Compartir mi código».</p>
-            <form id="vinculacionForm" class="medicamento-form">
-                <label for="vinculacionCodigo">Código de vinculación</label>
-                <input id="vinculacionCodigo" required maxlength="10" autocomplete="off" placeholder="Ej.: MAY-000123">
-                <label for="vinculacionTipo">Tipo de vínculo</label>
-                <select id="vinculacionTipo" required>
-                    <option value="Familiar">Familiar</option>
-                    <option value="Cuidador">Cuidador</option>
-                </select>
-                <button type="submit" class="panel-boton">Enviar solicitud</button>
-            </form>
-            <p id="vinculacionMensaje" role="status" aria-live="polite"></p>
-            <h3>Solicitudes enviadas</h3>
-            <ul id="solicitudes" class="panel-lista"></ul>
-        </section>
+        <div id="fondoMenu" class="panel-fondo" hidden></div>
     </main>
     <script src="js/acompanante.js"></script>
     <script src="js/contactos.js"></script>

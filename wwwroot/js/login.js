@@ -38,7 +38,10 @@ formulario.addEventListener("submit", async event => {
             window.location.assign("admin.html");
             return;
         }
-        mensaje.textContent = `¡Hola, ${datos.usuario.nombre}! Tus datos son correctos. Esta página de seguimiento es para acompañantes.`;
+        if(datos.usuario.tipoUsuario === "MAYOR") {
+            window.location.assign("Mayor.html");
+            return;
+        }
     } catch {
         mensaje.textContent = "No pudimos conectar con el servidor.";
     } finally {
