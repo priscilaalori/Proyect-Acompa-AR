@@ -1484,3 +1484,78 @@ body {
         flex-direction: column;
     }
 }
+
+/* Filtros y paginación de Administración */
+
+.admin-filtros-vinculaciones {
+    display: grid;
+    gap: 10px;
+    margin: 24px 0 18px;
+}
+
+.admin-filtros-vinculaciones input,
+.admin-filtros-vinculaciones select {
+    width: 100%;
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid #9675d0;
+    border-radius: 10px;
+    font: inherit;
+    background: white;
+ }
+
+#resumenVinculaciones {
+    margin: 16px 0;
+    color: #514966;
+    font-size: 14px;
+}
+
+.admin-paginacion {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    margin-top: 24px;
+    flex-wrap: wrap;
+}
+
+.admin-paginacion .panel-boton {
+    padding: 10px 16px;
+}
+
+.admin-paginacion .panel-boton:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+@media (max-width: 600px) {
+    .admin-paginacion {
+        gap: 10px;
+    }
+}
+
+/* Colores de estado de vinculaciónes */
+
+.panel-lista .estado-vinculacion {
+    display: inline-block;
+    padding: 5px 10px;
+    margin: 6px 0;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.panel-lista .estado-aceptada {
+    background-color: #e8f6ed;
+    color: #237447;
+}
+
+.panel-lista .estado-pendiente {
+    background-color: #fff3dc;
+    color: #95610d;
+}
+
+.panel-lista .estado-rechazada {
+    background-color: #fce9eb;
+    color: #aa3944;
+}

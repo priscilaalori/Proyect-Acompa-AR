@@ -156,6 +156,95 @@ namespace AcompañAR.Proyecto.Repositories
             return vinculaciones;
         }
 
+        public async Task<(List<object> Vinculaciones, long Total)> BuscarVinculacionesAsync(
+            string buscar,
+            string tipoBusqueda,
+            string estado,
+            int pagina,
+            int limite,
+            CancellationToken ct)
+        {
+            var vinculaciones = new List<object>();
+
+            using var conexion = new MySqlConnection(_cadenaConexion);
+            await conexion.OpenAsync(ct);
+
+            const string filtro =
+                """
+                FROM vinculacion v
+                JOIN usuario m ON m.id_usuario = v.id_mayor
+                JOIN usuario a ON a.id_usuario = v.id_acompanante
+                WHERE (@estado = '' OR v.estado = @estado)
+                    AND (
+                        @buscar = ''
+                        OR (@tipoBusqueda = 'nombre' AND (
+                            m.nombre LIKE @patron
+                            OR m.apellido LIKE @patron
+                            OR CONCAT(m.nombre, ' ', m.apellido) LIKE @patron
+                            OR a.nombre LIKE @patron
+                            OR a.apellido LIKE @patron
+                            OR CONCAT(a.nombre, ' ', a.apellido) LIKE @patron
+                        ))
+                        OR (@tipoBusqueda = 'vinculacion'
+                            AND v.id_vinculacion = @id)
+                        OR (@tipoBusqueda = 'mayor'
+                            AND v.id_mayor = @id)
+                        OR (@tipoBusqueda = 'acompanante'
+                            AND v.id_acompanante = @id)
+                   )
+                """;
+
+            using var comando = new MySqlCommand("", conexion);
+
+            comando.Parameters.AddWithValue("@buscar", buscar);
+            comando.Parameters.AddWithValue("@tipoBusqueda", tipoBusqueda);
+            comando.Parameters.AddWithValue("@estado", estado);
+            comando.Parameters.AddWithValue("@patron", $"%{buscar}%");
+
+            int.TryParse(buscar, out int idBuscado);
+            comando.Parameters.AddWithValue("@id", idBuscado);
+
+            comando.CommandText = $"SELECT COUNT(*) {filtro}";
+
+            long total = Convert.ToInt64(
+                await comando.ExecuteScalarAsync(ct));
+
+            comando.CommandText =
+                $"""
+                SELECT v.id_vinculacion, v.id_mayor, v.id_acompanante,
+                        m.nombre, m.apellido,
+                        a.nombre, a.apellido,
+                        v.tipo_vinculo, v.estado,
+                        DATE_FORMAT(v.fecha_vinculacion, '%Y-%m-%d')
+                {filtro}
+                ORDER BY v.id_vinculacion DESC
+                LIMIT @limite OFFSET @offset;
+                """;
+
+            comando.Parameters.AddWithValue("@limite", limite);
+            comando.Parameters.AddWithValue(
+                "@offset", (pagina - 1) * limite);
+
+            using var lector = await comando.ExecuteReaderAsync(ct);
+
+            while (await lector.ReadAsync(ct))
+            {
+                vinculaciones.Add(new
+                {
+                    idVinculacion = lector.GetInt32(0),
+                    idMayor = lector.GetInt32(1),
+                    idAcompanante = lector.GetInt32(2),
+                    mayor = $"{lector.GetString(3)} {lector.GetString(4)}",
+                    acompanante = $"{lector.GetString(5)} {lector.GetString(6)}",
+                    tipoVinculo = lector.GetString(7),
+                    estado = lector.GetString(8),
+                    fechaVinculacion = lector.GetString(9)
+                });
+            }
+
+            return (vinculaciones, total);
+        }
+
         public async Task<(bool MayorValido, bool AcompananteValido, bool Duplicado, long? IdVinculacion)> RegistrarVinculacionAsync(
             int idMayor,
             int idAcompanante,

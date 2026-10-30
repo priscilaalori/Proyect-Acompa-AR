@@ -1377,6 +1377,104 @@ adminApi.MapGet("/vinculaciones", async (
     }
 });
 
+adminApi.MapGet("/vinculaciones/buscar", async (
+    string? buscar,
+    string? tipoBusqueda,
+    string? estado,
+    int? pagina,
+    HttpContext contexto,
+    VinculacionRepository repositorio,
+    CancellationToken ct) =>
+{
+    if (!contexto.User.IsInRole("ADMIN"))
+        return Results.Forbid();
+
+    buscar = buscar?.Trim() ?? "";
+    estado = estado?.Trim().ToUpperInvariant() ?? "";
+
+    tipoBusqueda = tipoBusqueda?.Trim().ToLowerInvariant() ?? "nombre";
+
+    if (tipoBusqueda is not ("nombre" or "vinculacion"
+        or "mayor" or "acompanante"))
+    {
+        return Results.BadRequest(new
+        {
+            mensaje = "El tipo de búsqueda no es válido."
+        });
+    }
+
+    if (tipoBusqueda != "nombre" && buscar != ""
+        && (!int.TryParse(buscar, out int id) || id <= 0))
+    {
+        return Results.BadRequest(new
+        {
+            mensaje = "Ingresá un ID numérico válido."
+        });
+    }
+
+    int numeroPagina = pagina ?? 1;
+    const int limite = 10;
+
+    if (buscar.Length > 100)
+        return Results.BadRequest(new
+        {
+            mensaje = "La búsqueda es demasiado larga."
+        });
+
+    if (estado != "" &&
+        estado != "PENDIENTE" &&
+        estado != "ACEPTADA" &&
+        estado != "RECHAZADA")
+        return Results.BadRequest(new
+        {
+            mensaje = "El estado ingresado no es válido."
+        });
+
+    if (numeroPagina < 1 || numeroPagina > 1000000)
+        return Results.BadRequest(new
+        {
+            mensaje = "El número de página no es válido."
+        });
+
+    if (!repositorio.ConexionConfigurada)
+        return Results.Problem(
+            title: "Falta configurar la conexión con MySQL.",
+            statusCode: 500);
+
+    try
+    {
+        var (vinculaciones, total) =
+            await repositorio.BuscarVinculacionesAsync(
+                buscar,
+                tipoBusqueda,
+                estado,
+                numeroPagina,
+                limite,
+                ct);
+
+        contexto.Response.Headers.CacheControl = "no-store";
+
+        return Results.Ok(new
+        {
+            vinculaciones,
+            total,
+            pagina = numeroPagina,
+            limite,
+            totalPaginas = (long)Math.Ceiling(total / (double)limite)
+        });
+    }
+    catch (MySqlException ex)
+    {
+        app.Logger.LogError(
+            ex,
+            "No se pudieron buscar las vinculaciones.");
+
+        return Results.Problem(
+            title: "No se pudieron consultar las vinculaciones.",
+            statusCode: 503);
+    }
+});
+
 adminApi.MapPost("/vinculaciones", async (
     VinculacionRequest solicitud,
     HttpContext contexto,
