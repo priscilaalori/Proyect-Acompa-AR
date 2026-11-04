@@ -2,8 +2,45 @@ const mensaje = document.getElementById("panelMensaje");
 const configuracion = document.getElementById("configuracion");
 const reintentar = document.getElementById("reintentar");
 let idMayorActual = null;
-const estados = { PENDIENTE: "Pendiente", ENVIADO: "Enviado", CANCELADO: "Cancelado", PROGRAMADO: "Programado", REALIZADO: "Realizado" };
+const estados = { PENDIENTE: "Pendiente", ENVIADO: "Enviado", CANCELADO: "Cancelado", PROGRAMADO: "Programado", REALIZADO: "Realizado", CUMPLIDO: "Cumplido", NO_CUMPLIDO: "No cumplido", ACEPTADA: "Aceptada", RECHAZADA: "Rechazada" };
 const fecha = valor => new Intl.DateTimeFormat("es-AR").format(new Date(`${valor}T12:00:00`));
+const diaLocal = (dias = 0) => new Date(Date.now() + dias * 24 * 60 * 60 * 1000).toLocaleDateString("en-CA");
+let seccionActual = "recordatorios";
+
+function mostrarSeccion(nombre) {
+    seccionActual = nombre;
+    for (const seccion of document.querySelectorAll(".panel-seccion[data-seccion]")) {
+        seccion.hidden = seccion.dataset.seccion !== nombre;
+    }
+    for (const boton of document.querySelectorAll(".panel-nav")) {
+        if (boton.dataset.seccion === nombre) {
+            boton.setAttribute("aria-current", "page");
+        } else {
+            boton.removeAttribute("aria-current");
+        }
+    }
+    cerrarMenu();
+    mostrarAlertas();
+}
+
+function abrirMenu() {
+    document.getElementById("menu").classList.add("abierto");
+    document.getElementById("fondoMenu").hidden = false;
+    document.getElementById("abrirMenu").setAttribute("aria-expanded", "true");
+}
+
+function cerrarMenu() {
+    document.getElementById("menu").classList.remove("abierto");
+    document.getElementById("fondoMenu").hidden = true;
+    document.getElementById("abrirMenu").setAttribute("aria-expanded", "false");
+}
+
+document.getElementById("abrirMenu").addEventListener("click", abrirMenu);
+document.getElementById("cerrarMenu").addEventListener("click", cerrarMenu);
+document.getElementById("fondoMenu").addEventListener("click", cerrarMenu);
+for (const boton of document.querySelectorAll(".panel-nav")) {
+    boton.addEventListener("click", () => mostrarSeccion(boton.dataset.seccion));
+}
 
 function mostrarLista(id, elementos, vacio, describir) {
     const lista = document.getElementById(id);
@@ -40,10 +77,6 @@ function mostrarLista(id, elementos, vacio, describir) {
         if (id === "turnos") {
             agregarAccionesTurno(item, elemento);
         }
-
-        if (id === "recordatorios" && elemento.idRecordatorio && !elemento.cumplimiento) {
-            agregarAccionesRecordatorio(item, elemento);
-        }
         lista.append(item);
     }
 }
@@ -53,7 +86,7 @@ async function cargar() {
     reintentar.hidden = true;
     mensaje.textContent = "Cargando información…";
     try {
-        const respuesta = await fetch("/api/acompanante/panel", { cache: "no-store" });
+        const respuesta = await fetch(`/api/acompanante/panel${idMayorActual ? `?idMayor=${idMayorActual}` : ""}`, { cache: "no-store" });
         if (respuesta.status === 401) {
             window.location.replace("login.html");
             return;
@@ -61,27 +94,47 @@ async function cargar() {
         const datos = await respuesta.json();
         if (!respuesta.ok) throw new Error(datos.mensaje || datos.title || "No pudimos cargar la información.");
         document.getElementById("saludo").textContent = `¡Hola, ${datos.acompanante}!`;
+        document.getElementById("vinculacion").hidden = false;
+        await cargarSolicitudes();
         if (!datos.mayor) {
-            document.getElementById("personaMayor").textContent = "Todavía no tenés un adulto mayor con una vinculación aceptada.";
-            mensaje.textContent = "Cuando tengas una vinculación aceptada, podrás ver aquí su información.";
+            document.getElementById("personaMayor").textContent = "Sin persona vinculada";
+            document.getElementById("selectorMayor").hidden = true;
+            document.getElementById("avatarMayor").textContent = "?";
+            mensaje.textContent = "Todavía no tenés un adulto mayor con una vinculación aceptada. Cuando tengas una vinculación aceptada, podrás ver aquí su información.";
+            for (const id of ["cantidadRecordatorios", "cantidadMedicamentos", "cantidadTurnos", "cantidadHoy", "cantidadManana"]) document.getElementById(id).textContent = "";
+            mostrarSeccion("vinculacion");
             return;
         }
-        document.getElementById("personaMayor").textContent = `Estás acompañando a ${datos.mayor.nombre} ${datos.mayor.apellido}.`;
+        document.getElementById("personaMayor").textContent = `${datos.mayor.nombre} ${datos.mayor.apellido}`;
+        document.getElementById("avatarMayor").textContent = datos.mayor.nombre.charAt(0).toUpperCase();
         idMayorActual = datos.mayor.idUsuario;
-        mostrarLista("medicamentos", datos.medicamentos, "No hay medicamentos activos configurados.", m => [
+        const selector = document.getElementById("mayorElegido");
+        selector.replaceChildren(...datos.mayores.map(m => new Option(`${m.nombre} ${m.apellido}`, m.idUsuario)));
+        selector.value = idMayorActual;
+        document.getElementById("selectorMayor").hidden = datos.mayores.length < 2;
+        const describirMedicamento = m => [
             m.nombre, `Dosis: ${m.dosis}`, `${m.frecuencia} · Horario: ${m.horario}`,
             `Desde ${fecha(m.fechaInicio)}${m.fechaFin ? ` hasta ${fecha(m.fechaFin)}` : " · Sin fecha de finalización"}`
-        ]);
-        mostrarLista("recordatorios", datos.recordatorios, "No hay recordatorios configurados.", r => [
-            r.nombre, r.tipo, `${fecha(r.fecha)} · ${r.hora}`, `Estado: ${estados[r.estado] || r.estado}`
-        ]);
-        buscarRecordatorios();
+        ];
+        const medicamentos = datos.medicamentos.filter(m => !m.soloLectura);
+        mostrarLista("medicamentos", medicamentos, "No hay medicamentos activos configurados.", describirMedicamento);
+        document.getElementById("cantidadMedicamentos").textContent = medicamentos.length;
+        mostrarLista("historialMedicamentos", datos.medicamentos.filter(m => m.soloLectura),
+            "Todavía no hay tomas únicas respondidas.", m => [...describirMedicamento(m), "Finalizado · Solo consulta"]);
+        await buscarRecordatorios();
         mostrarLista("turnos", datos.turnos, "No hay turnos médicos configurados.", t => [
             t.especialidad, `Profesional: ${t.medico}`, `${fecha(t.fecha)} · ${t.hora}`,
             t.direccion, t.motivo ? `Motivo: ${t.motivo}` : null, `Estado: ${estados[t.estado] || t.estado}`
         ]);
+        document.getElementById("cantidadTurnos").textContent = datos.turnos.filter(t => t.estado === "PROGRAMADO").length;
+        turnosAlertas = datos.turnos;
+        await cargarAlertas();
+        const proximos = datos.recordatorios.filter(r => r.estado !== "CANCELADO");
+        document.getElementById("cantidadHoy").textContent = proximos.filter(r => r.fecha === diaLocal(0)).length;
+        document.getElementById("cantidadManana").textContent = proximos.filter(r => r.fecha === diaLocal(1)).length;
         mensaje.textContent = "La información configurada para su cuidado.";
         configuracion.hidden = false;
+        mostrarSeccion(seccionActual);
 
         cargarContactos(idMayorActual);
     } catch (error) {
@@ -89,6 +142,54 @@ async function cargar() {
         reintentar.hidden = false;
     }
 }
+
+async function cargarSolicitudes() {
+    const aviso = document.getElementById("vinculacionMensaje");
+    try {
+        const respuesta = await fetch("/api/acompanante/solicitudes", { cache: "no-store" });
+        const datos = await respuesta.json();
+        if (!respuesta.ok) throw new Error(datos.mensaje || datos.title || "No pudimos cargar tus solicitudes.");
+        mostrarLista("solicitudes", datos, "Todavía no enviaste solicitudes.", s => [
+            `${s.nombre} ${s.apellido}`, `Vínculo: ${s.tipoVinculo}`,
+            `Estado: ${estados[s.estado] || s.estado}`, `Enviada el ${fecha(s.fecha)}`
+        ]);
+    } catch (error) {
+        aviso.textContent = error.message === "Failed to fetch" ? "No pudimos conectar con el servidor." : error.message;
+    }
+}
+
+document.getElementById("vinculacionForm").addEventListener("submit", async event => {
+    event.preventDefault();
+    const aviso = document.getElementById("vinculacionMensaje");
+    const boton = event.submitter;
+    boton.disabled = true;
+    try {
+        const respuesta = await fetch("/api/acompanante/solicitudes", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                codigo: document.getElementById("vinculacionCodigo").value,
+                tipoVinculo: document.getElementById("vinculacionTipo").value
+            })
+        });
+        const datos = await respuesta.json().catch(() => ({}));
+        aviso.textContent = datos.mensaje || datos.title || "No pudimos enviar la solicitud.";
+        if (respuesta.ok) {
+            event.target.reset();
+            await cargarSolicitudes();
+        }
+    } catch {
+        aviso.textContent = "No pudimos conectar con el servidor.";
+    } finally {
+        boton.disabled = false;
+    }
+});
+
+document.getElementById("mayorElegido").addEventListener("change", event => {
+    idMayorActual = Number(event.target.value);
+    for (const id of ["medicamentoForm", "turnoForm", "contactoForm"]) document.getElementById(id).hidden = true;
+    cargar();
+});
 
 document.getElementById("cerrarSesion").addEventListener("click", async event => {
     event.target.disabled = true;
@@ -134,6 +235,7 @@ function actualizarFrecuencia() {
 
 function abrirFormulario(medicamento = null) {
     if (guardando) return;
+    if (medicamento?.soloLectura) { avisoMedicamento.textContent = "Este medicamento quedó en el historial y no se puede modificar."; return; }
     formulario.reset();
     idEditando = medicamento?.idMedicamento ?? null;
     document.getElementById("tituloFormulario").textContent = medicamento ? "Editar medicamento" : "Agregar medicamento";
@@ -157,6 +259,7 @@ function abrirFormulario(medicamento = null) {
 }
 
 function agregarAcciones(item, medicamento) {
+    if (medicamento.soloLectura) return;
     const acciones = document.createElement("div");
     acciones.className = "medicamento-acciones";
     for (const [texto, accion] of [
@@ -228,6 +331,7 @@ async function modificarMedicamento(metodo, id, datos) {
 }
 
 async function darDeBaja(medicamento) {
+    if (medicamento.soloLectura) return;
     if (guardando || !window.confirm(`¿Dar de baja ${medicamento.nombre}? Se cancelarán sus recordatorios pendientes y se conservará el historial.`)) return;
     await modificarMedicamento("DELETE", medicamento.idMedicamento);
 }
@@ -414,30 +518,124 @@ async function cancelarTurno(turno) {
 }
 const recordatoriosDesde = document.getElementById("recordatoriosDesde");
 const recordatoriosHasta = document.getElementById("recordatoriosHasta");
-// Por defecto, la próxima semana. "en-CA" da la fecha local como AAAA-MM-DD.
-recordatoriosDesde.value = new Date().toLocaleDateString("en-CA");
-recordatoriosHasta.value = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString("en-CA");
+const recordatoriosEstado = document.getElementById("recordatoriosEstado");
+// Por defecto, hoy y mañana. "en-CA" da la fecha local como AAAA-MM-DD.
+recordatoriosDesde.value = diaLocal(0);
+recordatoriosHasta.value = diaLocal(1);
+let recordatoriosCargados = [];
+let tipoElegido = "";
+
+function marcarAtajos() {
+    const mismoDia = recordatoriosDesde.value === recordatoriosHasta.value;
+    document.getElementById("verHoy").setAttribute("aria-pressed", mismoDia && recordatoriosDesde.value === diaLocal(0));
+    document.getElementById("verManana").setAttribute("aria-pressed", mismoDia && recordatoriosDesde.value === diaLocal(1));
+}
 
 async function buscarRecordatorios() {
     const mensajeRecordatorios = document.getElementById("recordatoriosMensaje");
     mensajeRecordatorios.textContent = "";
+    marcarAtajos();
     try {
         const respuesta = await fetch(`/api/acompanante/mayores/${idMayorActual}/recordatorios?desde=${recordatoriosDesde.value}&hasta=${recordatoriosHasta.value}`, { cache: "no-store" });
         const datos = await respuesta.json().catch(() => ({}));
         if (!respuesta.ok) throw new Error(datos.mensaje || "No pudimos consultar los recordatorios.");
-        mostrarLista("recordatorios", datos, "No hay recordatorios pendientes en esas fechas.", r => [
-            r.nombre, r.tipo, `${fecha(r.fecha)} · ${r.hora}`, `Estado: ${estados[r.estado] || r.estado}`,
-            r.cumplimiento ? `Cumplimiento: ${r.cumplimiento === "CUMPLIDO" ? "Cumplido" : "No cumplido"}` : null
-        ]);
+        recordatoriosCargados = datos;
+        mostrarRecordatorios();
     } catch (error) {
         mensajeRecordatorios.textContent = error.message;
     }
 }
 
-document.getElementById("recordatoriosForm").addEventListener("submit", event => {
-    event.preventDefault();
+function mostrarRecordatorios() {
+    const lista = document.getElementById("recordatorios");
+    lista.replaceChildren();
+    const filtrados = recordatoriosCargados.filter(r => {
+        const coincideEstado = recordatoriosEstado.value === "" ||
+            (recordatoriosEstado.value === "PENDIENTE" ? !r.cumplimiento : r.cumplimiento === recordatoriosEstado.value);
+        return coincideEstado && (!tipoElegido || r.tipo === tipoElegido);
+    });
+    const dias = [];
+    for (const r of filtrados) {
+        const ultimo = dias[dias.length - 1];
+        if (ultimo && ultimo.fecha === r.fecha) ultimo.recordatorios.push(r);
+        else dias.push({ fecha: r.fecha, recordatorios: [r] });
+    }
+    for (const dia of dias) {
+        const encabezado = document.createElement("h3");
+        encabezado.className = "panel-dia";
+        const prefijo = dia.fecha === diaLocal(0) ? "Hoy · " : dia.fecha === diaLocal(1) ? "Mañana · " : "";
+        const nombreDia = new Intl.DateTimeFormat("es-AR", { weekday: "long" }).format(new Date(`${dia.fecha}T12:00:00`)) + " " + fecha(dia.fecha).slice(0, -5);
+        encabezado.textContent = prefijo + nombreDia;
+        const cantidad = document.createElement("span");
+        cantidad.textContent = dia.recordatorios.length === 1 ? "1 recordatorio" : `${dia.recordatorios.length} recordatorios`;
+        encabezado.append(cantidad);
+        lista.append(encabezado);
+        const grupo = document.createElement("ul");
+        grupo.className = "panel-lista";
+        for (const r of dia.recordatorios) {
+            const item = document.createElement("li");
+            item.className = "panel-recordatorio";
+            const hora = document.createElement("span");
+            hora.className = "panel-hora";
+            hora.textContent = r.hora;
+            const detalle = document.createElement("div");
+            const nombre = document.createElement("p");
+            const negrita = document.createElement("strong");
+            negrita.textContent = r.nombre;
+            nombre.append(negrita);
+            const tipo = document.createElement("p");
+            tipo.textContent = r.tipo;
+            detalle.append(nombre, tipo);
+            const cumplimiento = r.cumplimiento || "PENDIENTE";
+            const etiqueta = document.createElement("span");
+            etiqueta.className = `panel-estado estado-${cumplimiento.toLowerCase()}`;
+            etiqueta.textContent = estados[r.estado] || r.estado;
+            item.append(hora, detalle, etiqueta);
+            if (!r.cumplimiento) agregarAccionesRecordatorio(item, r);
+            grupo.append(item);
+        }
+        lista.append(grupo);
+    }
+    if (!filtrados.length) {
+        const vacio = document.createElement("p");
+        vacio.className = "panel-vacio";
+        vacio.textContent = "No hay recordatorios con estos filtros.";
+        lista.append(vacio);
+    }
+    document.getElementById("cantidadRecordatorios").textContent = filtrados.length || "";
+}
+
+recordatoriosDesde.addEventListener("change", buscarRecordatorios);
+recordatoriosHasta.addEventListener("change", buscarRecordatorios);
+recordatoriosEstado.addEventListener("change", mostrarRecordatorios);
+
+document.getElementById("verHoy").addEventListener("click", () => {
+    recordatoriosDesde.value = diaLocal(0);
+    recordatoriosHasta.value = diaLocal(0);
     buscarRecordatorios();
 });
+
+document.getElementById("verManana").addEventListener("click", () => {
+    recordatoriosDesde.value = diaLocal(1);
+    recordatoriosHasta.value = diaLocal(1);
+    buscarRecordatorios();
+});
+
+document.getElementById("verFiltros").addEventListener("click", event => {
+    const filtros = document.getElementById("filtros");
+    const abrir = filtros.hidden;
+    filtros.hidden = !abrir;
+    event.target.textContent = abrir ? "Ocultar filtros" : "Filtros";
+    event.target.setAttribute("aria-expanded", abrir);
+});
+
+for (const chip of document.querySelectorAll(".panel-chip")) {
+    chip.addEventListener("click", () => {
+        tipoElegido = chip.dataset.tipo;
+        for (const otro of document.querySelectorAll(".panel-chip")) otro.setAttribute("aria-pressed", otro === chip);
+        mostrarRecordatorios();
+    });
+}
 
 function agregarAccionesRecordatorio(item, recordatorio) {
     const acciones = document.createElement("div");
@@ -465,9 +663,108 @@ async function registrarCumplimiento(recordatorio, estado, texto) {
         });
         const datos = await respuesta.json().catch(() => ({}));
         if (!respuesta.ok) throw new Error(datos.mensaje || "No pudimos registrar el cumplimiento.");
-        await buscarRecordatorios();
+        await cargar();
         mensajeRecordatorios.textContent = datos.mensaje;
     } catch (error) {
         mensajeRecordatorios.textContent = error.message;
     }
 }
+
+// Alertas: lo que no confirmó a tiempo o no cumplió en las últimas 24 horas.
+const minutosEspera = document.getElementById("minutosEspera");
+minutosEspera.value = localStorage.getItem("minutosAlerta") || "20";
+let recordatoriosAlertas = [];
+let turnosAlertas = [];
+
+const alertasVistas = () => JSON.parse(localStorage.getItem("alertasVistas") || "[]");
+
+async function cargarAlertas() {
+    if (!idMayorActual) {
+        recordatoriosAlertas = [];
+        mostrarAlertas();
+        return;
+    }
+    try {
+        const respuesta = await fetch(`/api/acompanante/mayores/${idMayorActual}/recordatorios?desde=${diaLocal(-1)}&hasta=${diaLocal(0)}`, { cache: "no-store" });
+        if (!respuesta.ok) return;
+        recordatoriosAlertas = await respuesta.json();
+        mostrarAlertas();
+    } catch {
+        // Si falla la consulta no mostramos nada nuevo, para no romper el panel.
+    }
+}
+
+function mostrarAlertas() {
+    const vistas = alertasVistas();
+    const minutos = Number(minutosEspera.value || 20);
+    const ahora = new Date();
+    const limite = new Date(ahora.getTime() - 24 * 60 * 60 * 1000);
+    const tomas = [];
+    const turnos = [];
+    for (const r of recordatoriosAlertas) {
+        if (r.tipo !== "Medicamento" || vistas.includes("r" + r.idRecordatorio)) continue;
+        const cuando = new Date(`${r.fecha}T${r.hora}:00`);
+        if (cuando < limite || cuando > ahora) continue;
+        let texto = "";
+        if (r.cumplimiento === "NO_CUMPLIDO") {
+            texto = `No tomó ${r.nombre} de las ${r.hora}.`;
+        } else if (!r.cumplimiento && ahora - cuando >= minutos * 60 * 1000) {
+            texto = `No confirmó la toma de ${r.nombre} de las ${r.hora}.`;
+        }
+        if (texto) tomas.push({ clave: "r" + r.idRecordatorio, cuando, hora: r.hora, texto });
+    }
+    for (const t of turnosAlertas) {
+        if (t.estado !== "PROGRAMADO" || vistas.includes("t" + t.idTurno)) continue;
+        const cuando = new Date(`${t.fecha}T${t.hora}:00`);
+        if (cuando < limite || cuando > ahora || ahora - cuando < minutos * 60 * 1000) continue;
+        turnos.push({ clave: "t" + t.idTurno, cuando, hora: t.hora, texto: `No marcó que fue al turno de ${t.especialidad} de las ${t.hora}.` });
+    }
+    // Primero las tomas y después los turnos, cada grupo de la más vieja a la más nueva.
+    const alertas = [
+        ...tomas.sort((a, b) => a.cuando - b.cuando),
+        ...turnos.sort((a, b) => a.cuando - b.cuando)
+    ];
+    const lista = document.getElementById("alertas");
+    lista.replaceChildren();
+    for (const alerta of alertas) {
+        const item = document.createElement("li");
+        item.className = "panel-alerta";
+        const detalle = document.createElement("p");
+        const texto = document.createElement("strong");
+        texto.textContent = alerta.texto;
+        const cuando = document.createElement("small");
+        const dia = alerta.cuando.toLocaleDateString("en-CA") === diaLocal(0) ? "Hoy" : "Ayer";
+        cuando.textContent = `${dia} · ${alerta.hora}`;
+        detalle.append(texto, cuando);
+        const boton = document.createElement("button");
+        boton.type = "button";
+        boton.className = "panel-boton";
+        boton.textContent = "Entendido";
+        boton.addEventListener("click", () => {
+            localStorage.setItem("alertasVistas", JSON.stringify([...vistas, alerta.clave]));
+            mostrarAlertas();
+        });
+        item.append(detalle, boton);
+        lista.append(item);
+    }
+    if (!alertas.length) {
+        const vacio = document.createElement("li");
+        vacio.className = "panel-vacio";
+        vacio.textContent = "Está todo al día.";
+        lista.append(vacio);
+    }
+    document.getElementById("cantidadAlertas").textContent = alertas.length || "";
+    document.getElementById("textoAlertas").textContent = alertas.length === 1 ? "1 sin revisar" : `${alertas.length} sin revisar`;
+    document.getElementById("bannerAlertas").hidden = !alertas.length || seccionActual === "alertas";
+}
+
+minutosEspera.addEventListener("change", () => {
+    localStorage.setItem("minutosAlerta", minutosEspera.value);
+    mostrarAlertas();
+});
+
+document.getElementById("verAlertas").addEventListener("click", () => mostrarSeccion("alertas"));
+
+setInterval(() => {
+    if (idMayorActual) cargarAlertas();
+}, 60000);

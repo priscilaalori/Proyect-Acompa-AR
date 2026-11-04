@@ -68,16 +68,20 @@ final class AuthClient {
         } catch (Exception e) { clearSession(); return null; }
     }
     JSONObject post(String path, JSONObject body) throws Exception {
+        return request(path, body);
+    }
+    JSONObject get(String path) throws Exception { return request(path, null); }
+    private JSONObject request(String path, JSONObject body) throws Exception {
         URL url = new URL(BuildConfig.API_BASE_URL + path);
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         try {
-            connection.setRequestMethod("POST");
+            connection.setRequestMethod(body == null ? "GET" : "POST");
             connection.setConnectTimeout(15000); connection.setReadTimeout(15000);
-            connection.setInstanceFollowRedirects(false); connection.setDoOutput(true);
+            connection.setInstanceFollowRedirects(false); connection.setDoOutput(body != null);
             connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
             for (Map.Entry<String, List<String>> entry : cookies.get(url.toURI(), java.util.Collections.emptyMap()).entrySet())
                 connection.setRequestProperty(entry.getKey(), String.join("; ", entry.getValue()));
-            try (java.io.OutputStream output = connection.getOutputStream()) {
+            if (body != null) try (java.io.OutputStream output = connection.getOutputStream()) {
                 output.write(body.toString().getBytes(StandardCharsets.UTF_8));
             }
             int status = connection.getResponseCode();

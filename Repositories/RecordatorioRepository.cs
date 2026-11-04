@@ -32,12 +32,13 @@ public sealed class RecordatorioRepository
         comando.CommandText = """
             SELECT r.id_recordatorio, COALESCE(m.nombre, t.especialidad),
                    CASE WHEN r.id_medicamento IS NOT NULL THEN 'Medicamento' ELSE 'Turno médico' END,
-                   DATE_FORMAT(r.fecha_hora, '%Y-%m-%d'), TIME_FORMAT(r.fecha_hora, '%H:%i'), r.estado, c.estado
+                   DATE_FORMAT(r.fecha_hora, '%Y-%m-%d'), TIME_FORMAT(r.fecha_hora, '%H:%i'), COALESCE(c.estado, r.estado), c.estado
             FROM recordatorio r
             LEFT JOIN medicamento m ON m.id_medicamento = r.id_medicamento
             LEFT JOIN turno_medico t ON t.id_turno = r.id_turno
             LEFT JOIN cumplimiento c ON c.id_recordatorio = r.id_recordatorio
-            WHERE (m.id_mayor = @mayor OR t.id_mayor = @mayor) AND r.estado = 'PENDIENTE'
+            WHERE (m.id_mayor = @mayor OR t.id_mayor = @mayor)
+              AND (r.estado <> 'CANCELADO' OR c.id_cumplimiento IS NOT NULL)
               AND r.fecha_hora >= @desde AND r.fecha_hora < @hasta
             ORDER BY r.fecha_hora, r.id_recordatorio;
             """;
@@ -58,10 +59,12 @@ public sealed class RecordatorioRepository
         await conexion.OpenAsync(ct);
         using var transaccion = conexion.BeginTransaction();
         using var comando = new MySqlCommand("""
-            SELECT r.id_recordatorio FROM recordatorio r
+            SELECT COALESCE(TIMESTAMP(t.fecha, t.hora), r.fecha_hora) <= NOW() FROM recordatorio r
             LEFT JOIN medicamento m ON m.id_medicamento = r.id_medicamento
             LEFT JOIN turno_medico t ON t.id_turno = r.id_turno
             WHERE r.id_recordatorio = @id AND r.estado <> 'CANCELADO'
+              AND (m.id_medicamento IS NULL OR m.estado = TRUE)
+              AND (t.id_turno IS NULL OR t.estado = 'PROGRAMADO')
               AND (COALESCE(m.id_mayor, t.id_mayor) = @usuario OR EXISTS (
                   SELECT 1 FROM vinculacion v WHERE v.id_mayor = COALESCE(m.id_mayor, t.id_mayor)
                     AND v.id_acompanante = @usuario AND v.estado = 'ACEPTADA'))
@@ -69,12 +72,23 @@ public sealed class RecordatorioRepository
             """, conexion, transaccion);
         comando.Parameters.AddWithValue("@id", idRecordatorio);
         comando.Parameters.AddWithValue("@usuario", idUsuario);
-        if (await comando.ExecuteScalarAsync(ct) is null) return (false, false);
+        var disponible = await comando.ExecuteScalarAsync(ct);
+        if (disponible is null) return (false, false);
+        if (!Convert.ToBoolean(disponible))
+            throw new InvalidOperationException("Podés registrar el cumplimiento a partir del día y horario programados.");
         comando.CommandText = "SELECT id_cumplimiento FROM cumplimiento WHERE id_recordatorio = @id";
         if (await comando.ExecuteScalarAsync(ct) is not null) return (true, true);
         comando.Parameters.AddWithValue("@estado", estado);
         comando.CommandText = "INSERT INTO cumplimiento (id_recordatorio, estado) VALUES (@id, @estado)";
         await comando.ExecuteNonQueryAsync(ct);
+        if (estado == "CUMPLIDO")
+        {
+            comando.CommandText = """
+                UPDATE turno_medico t JOIN recordatorio r ON r.id_turno = t.id_turno
+                SET t.estado = 'REALIZADO' WHERE r.id_recordatorio = @id;
+                """;
+            await comando.ExecuteNonQueryAsync(ct);
+        }
         await transaccion.CommitAsync(ct);
         return (true, false);
     }

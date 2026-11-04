@@ -19,6 +19,9 @@
 .panel-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; align-items: start; }
 .panel-seccion { padding: 24px; background: white; border-radius: 24px; box-shadow: 0 8px 30px rgba(90,70,120,.12); }
 .panel-seccion h2 { font-size: 22px; color: #7654b8; margin-bottom: 20px; }
+.panel-vinculacion { max-width: 640px; }
+#configuracion { margin-bottom: 24px; }
+#mayorElegido { padding: 8px; font: inherit; font-weight: bold; color: #3d3650; border: 1px solid #9675d0; border-radius: 8px; background: white; }
 .panel-lista { list-style: none; }
 .panel-lista li { padding: 18px 0; border-top: 1px solid #eee5ff; overflow-wrap: anywhere; }
 .panel-lista h3 { font-size: 18px; margin-bottom: 10px; }
@@ -725,7 +728,10 @@ body {
     color: #218739;
     font-weight: 700;
 }
+<<<<<<< HEAD
 
+=======
+>>>>>>> origin/feature/pri-panel-mayor
 /* =====================================
    PANEL DEL ACOMPAÑANTE
 
@@ -1457,6 +1463,7 @@ body {
         grid-column: 1 / -1;
     }
 }
+<<<<<<< HEAD
 
 
 /* Búsqueda de usuarios en el panel de Administración */
@@ -1942,3 +1949,5 @@ body:has(.panel-mayor.alto-contraste) {
         flex-wrap: wrap;
     }
 
+=======
+>>>>>>> origin/feature/pri-panel-mayor

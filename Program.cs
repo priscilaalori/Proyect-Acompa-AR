@@ -653,30 +653,39 @@ if (app.Environment.IsDevelopment())
                 WHERE v.id_acompanante = @id AND v.estado = 'ACEPTADA'
                   AND u.estado = TRUE AND u.tipo_usuario = 'MAYOR'
                   AND a.estado = TRUE AND a.tipo_usuario = 'ACOMPANANTE'
-                ORDER BY v.fecha_vinculacion, v.id_vinculacion
-                LIMIT 1;
+                ORDER BY v.fecha_vinculacion, v.id_vinculacion;
                 """, conexion);
             comando.Parameters.Add("@id", MySqlDbType.Int32).Value =
                 int.Parse(contexto.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-            int idMayor;
-            object mayor;
+            // Si no viene ?idMayor= o no es una de sus personas, se muestra la vinculación más vieja.
+            int.TryParse(contexto.Request.Query["idMayor"], out var idElegido);
+            int idMayor = 0;
+            object? mayor = null;
+            var mayores = new List<object>();
             using (var lector = await comando.ExecuteReaderAsync(cancellationToken))
-            {
-                if (!await lector.ReadAsync(cancellationToken))
-                    return Results.Ok(new { acompanante = contexto.User.Identity!.Name, mayor = (object?)null,
-                        medicamentos = Array.Empty<object>(), recordatorios = Array.Empty<object>(), turnos = Array.Empty<object>() });
-                idMayor = lector.GetInt32(0);
-                mayor = new { idUsuario = idMayor, nombre = lector.GetString(1), apellido = lector.GetString(2) };
-            }
+                while (await lector.ReadAsync(cancellationToken))
+                {
+                    var actual = new { idUsuario = lector.GetInt32(0), nombre = lector.GetString(1), apellido = lector.GetString(2) };
+                    mayores.Add(actual);
+                    if (mayor == null || actual.idUsuario == idElegido)
+                    {
+                        idMayor = actual.idUsuario;
+                        mayor = actual;
+                    }
+                }
+            if (mayor == null)
+                return Results.Ok(new { acompanante = contexto.User.Identity!.Name, mayor, mayores,
+                    medicamentos = Array.Empty<object>(), recordatorios = Array.Empty<object>(), turnos = Array.Empty<object>() });
 
             // Las tres consultas se limitan al adulto obtenido de la vinculación del usuario autenticado.
             comando.Parameters.Clear();
             comando.Parameters.Add("@idMayor", MySqlDbType.Int32).Value = idMayor;
-            comando.CommandText = """
+            comando.CommandText = $$"""
                 SELECT nombre, dosis, frecuencia, TIME_FORMAT(horario, '%H:%i'),
-                       DATE_FORMAT(fecha_inicio, '%Y-%m-%d'), DATE_FORMAT(fecha_fin, '%Y-%m-%d'), id_medicamento
-                FROM medicamento WHERE id_mayor = @idMayor AND estado = TRUE
+                       DATE_FORMAT(fecha_inicio, '%Y-%m-%d'), DATE_FORMAT(fecha_fin, '%Y-%m-%d'), id_medicamento,
+                       {{MedicamentoRepository.TomaUnicaRespondidaSql}} soloLectura
+                FROM medicamento m WHERE id_mayor = @idMayor AND estado = TRUE
                 ORDER BY horario, id_medicamento;
                 """;
             var medicamentos = new List<object>();
@@ -684,7 +693,8 @@ if (app.Environment.IsDevelopment())
                 while (await lector.ReadAsync(cancellationToken))
                     medicamentos.Add(new { idMedicamento = lector.GetInt32(6), nombre = lector.GetString(0), dosis = lector.GetString(1),
                         frecuencia = lector.GetString(2), horario = lector.GetString(3),
-                        fechaInicio = lector.GetString(4), fechaFin = lector.IsDBNull(5) ? null : lector.GetString(5) });
+                        fechaInicio = lector.GetString(4), fechaFin = lector.IsDBNull(5) ? null : lector.GetString(5),
+                        soloLectura = Convert.ToBoolean(lector.GetValue(7)) });
 
             comando.CommandText = """
     SELECT t.especialidad, t.nombre_medico, DATE_FORMAT(t.fecha, '%Y-%m-%d'),
@@ -704,10 +714,11 @@ if (app.Environment.IsDevelopment())
             comando.CommandText = """
                 SELECT COALESCE(m.nombre, t.especialidad),
                        CASE WHEN r.id_medicamento IS NOT NULL THEN 'Medicamento' ELSE 'Turno médico' END,
-                       DATE_FORMAT(r.fecha_hora, '%Y-%m-%d'), TIME_FORMAT(r.fecha_hora, '%H:%i'), r.estado
+                       DATE_FORMAT(r.fecha_hora, '%Y-%m-%d'), TIME_FORMAT(r.fecha_hora, '%H:%i'), COALESCE(c.estado, r.estado)
                 FROM recordatorio r
                 LEFT JOIN medicamento m ON m.id_medicamento = r.id_medicamento
                 LEFT JOIN turno_medico t ON t.id_turno = r.id_turno
+                LEFT JOIN cumplimiento c ON c.id_recordatorio = r.id_recordatorio
                 WHERE m.id_mayor = @idMayor OR t.id_mayor = @idMayor
                 ORDER BY r.fecha_hora, r.id_recordatorio;
                 """;
@@ -717,7 +728,7 @@ if (app.Environment.IsDevelopment())
                     recordatorios.Add(new { nombre = lector.GetString(0), tipo = lector.GetString(1),
                         fecha = lector.GetString(2), hora = lector.GetString(3), estado = lector.GetString(4) });
 
-            return Results.Ok(new { acompanante = contexto.User.Identity!.Name, mayor, medicamentos, recordatorios, turnos });
+            return Results.Ok(new { acompanante = contexto.User.Identity!.Name, mayor, mayores, medicamentos, recordatorios, turnos });
         }
         catch (MySqlException ex)
         {
@@ -951,6 +962,10 @@ async Task<IResult> ProcesarMedicamento(HttpContext contexto, MedicamentoService
         app.Logger.LogError(ex, "No se pudo guardar el medicamento.");
         return Results.Problem(title: "No se pudo guardar el medicamento. Intentá nuevamente.", statusCode: 503);
     }
+    catch (InvalidOperationException ex)
+    {
+        return Results.Conflict(new { mensaje = ex.Message });
+    }
 }
 
 var turnosApi = app.MapGroup(
@@ -1040,6 +1055,187 @@ async Task<IResult> ProcesarTurnoMedico(
     }
 }
 
+app.MapGet("/api/mayor/panel", async (HttpContext contexto, IConfiguration config,
+    MedicamentoRepository medicamentosRepository, CancellationToken ct) =>
+{
+    if (!contexto.User.IsInRole("MAYOR")) return Results.Forbid();
+    try
+    {
+        await medicamentosRepository.AsegurarTomasActualesAsync(
+            int.Parse(contexto.User.FindFirstValue(ClaimTypes.NameIdentifier)!), ct);
+        using var conexion = new MySqlConnection(config.GetConnectionString("MySql"));
+        await conexion.OpenAsync(ct);
+        using var comando = new MySqlCommand("", conexion);
+        comando.Parameters.AddWithValue("@mayor", int.Parse(contexto.User.FindFirstValue(ClaimTypes.NameIdentifier)!));
+        async Task<List<Dictionary<string, object?>>> Leer(string sql)
+        {
+            comando.CommandText = sql;
+            var filas = new List<Dictionary<string, object?>>();
+            using var lector = await comando.ExecuteReaderAsync(ct);
+            while (await lector.ReadAsync(ct))
+            {
+                var fila = new Dictionary<string, object?>();
+                for (int i = 0; i < lector.FieldCount; i++)
+                    fila[lector.GetName(i)] = lector.IsDBNull(i) ? null : lector.GetValue(i);
+                filas.Add(fila);
+            }
+            return filas;
+        }
+        var medicamentos = await Leer($$"""
+            SELECT nombre, dosis, frecuencia, TIME_FORMAT(horario, '%H:%i') horario,
+                   DATE_FORMAT(fecha_inicio, '%Y-%m-%d') fechaInicio, DATE_FORMAT(fecha_fin, '%Y-%m-%d') fechaFin,
+                   {{MedicamentoRepository.TomaUnicaRespondidaSql}} soloLectura
+            FROM medicamento m WHERE id_mayor = @mayor AND estado = TRUE ORDER BY horario, id_medicamento
+            """);
+        var turnos = await Leer("""
+            SELECT especialidad, nombre_medico medico, direccion, motivo, estado,
+                   DATE_FORMAT(fecha, '%Y-%m-%d') fecha, TIME_FORMAT(hora, '%H:%i') hora
+            FROM turno_medico WHERE id_mayor = @mayor AND estado <> 'CANCELADO' ORDER BY fecha, hora, id_turno
+            """);
+        var recordatorios = await Leer("""
+            SELECT r.id_recordatorio idRecordatorio, COALESCE(m.nombre, t.especialidad) nombre,
+                   IF(m.id_medicamento IS NOT NULL, 'MEDICAMENTO', 'TURNO') tipo,
+                   COALESCE(m.dosis, t.direccion) detalle,
+                   DATE_FORMAT(COALESCE(TIMESTAMP(t.fecha, t.hora), r.fecha_hora), '%Y-%m-%d') fecha,
+                   TIME_FORMAT(COALESCE(TIMESTAMP(t.fecha, t.hora), r.fecha_hora), '%H:%i') hora,
+                   COALESCE(c.estado, r.estado) estado, c.estado cumplimiento,
+                   IF(COALESCE(TIMESTAMP(t.fecha, t.hora), r.fecha_hora) <= NOW(), 1, 0) disponible
+            FROM recordatorio r
+            LEFT JOIN medicamento m ON m.id_medicamento = r.id_medicamento
+            LEFT JOIN turno_medico t ON t.id_turno = r.id_turno
+            LEFT JOIN cumplimiento c ON c.id_recordatorio = r.id_recordatorio
+            WHERE (m.id_mayor = @mayor AND m.estado = TRUE OR t.id_mayor = @mayor AND t.estado <> 'CANCELADO')
+              AND r.estado <> 'CANCELADO'
+              AND (c.id_cumplimiento IS NULL OR DATE(c.fecha_hora_registro) = CURDATE())
+            ORDER BY COALESCE(TIMESTAMP(t.fecha, t.hora), r.fecha_hora), r.id_recordatorio
+            """);
+        var contactos = await Leer("""
+            SELECT id_contacto idContacto, nombre, apellido, telefono, tipo_vinculo tipoVinculo
+            FROM contacto_confianza WHERE id_mayor = @mayor AND estado = TRUE
+            ORDER BY nombre, apellido, id_contacto
+            """);
+        var solicitudes = await Leer("""
+            SELECT v.id_vinculacion idVinculacion, a.nombre, a.apellido, a.email,
+                   a.telefono, v.tipo_vinculo tipoVinculo,
+                   DATE_FORMAT(v.fecha_vinculacion, '%Y-%m-%d') fecha
+            FROM vinculacion v JOIN usuario a ON a.id_usuario = v.id_acompanante
+            WHERE v.id_mayor = @mayor AND v.estado = 'PENDIENTE'
+              AND a.estado = TRUE AND a.tipo_usuario = 'ACOMPANANTE'
+            ORDER BY v.fecha_vinculacion DESC, v.id_vinculacion DESC
+            """);
+        return Results.Ok(new { medicamentos, turnos, recordatorios, contactos, solicitudes });
+    }
+    catch (MySqlException ex)
+    {
+        app.Logger.LogError(ex, "No se pudo cargar el panel de la persona mayor.");
+        return Results.Problem(title: "No pudimos cargar tus cuidados. Intentá nuevamente.", statusCode: 503);
+    }
+}).RequireAuthorization().WithTags("Mayor");
+
+app.MapPost("/api/mayor/solicitudes/{idVinculacion:int}/respuesta", async (
+    int idVinculacion, ResponderSolicitudRequest solicitud, HttpContext contexto,
+    IConfiguration config, CancellationToken ct) =>
+{
+    if (!contexto.User.IsInRole("MAYOR")) return Results.Forbid();
+    if (idVinculacion <= 0 || solicitud.Estado is not ("ACEPTADA" or "RECHAZADA"))
+        return Results.BadRequest(new { mensaje = "Elegí aceptar o rechazar la solicitud." });
+    try
+    {
+        using var conexion = new MySqlConnection(config.GetConnectionString("MySql"));
+        await conexion.OpenAsync(ct);
+        // La condición PENDIENTE hace atómica la respuesta y evita sobrescribir otra decisión.
+        using var comando = new MySqlCommand("""
+            UPDATE vinculacion v
+            JOIN usuario a ON a.id_usuario = v.id_acompanante AND a.estado = TRUE AND a.tipo_usuario = 'ACOMPANANTE'
+            JOIN usuario m ON m.id_usuario = v.id_mayor AND m.estado = TRUE AND m.tipo_usuario = 'MAYOR'
+            SET v.estado = @estado
+            WHERE v.id_vinculacion = @id AND v.id_mayor = @mayor AND v.estado = 'PENDIENTE'
+            """, conexion);
+        comando.Parameters.AddWithValue("@id", idVinculacion);
+        comando.Parameters.AddWithValue("@mayor", int.Parse(contexto.User.FindFirstValue(ClaimTypes.NameIdentifier)!));
+        comando.Parameters.AddWithValue("@estado", solicitud.Estado);
+        if (await comando.ExecuteNonQueryAsync(ct) == 0)
+            return Results.Conflict(new { mensaje = "La solicitud ya no está pendiente o no está disponible para tu cuenta." });
+        return Results.Ok(new { mensaje = solicitud.Estado == "ACEPTADA" ? "Solicitud aceptada." : "Solicitud rechazada." });
+    }
+    catch (MySqlException ex)
+    {
+        app.Logger.LogError(ex, "No se pudo responder la solicitud de vinculación.");
+        return Results.Problem(title: "No pudimos guardar tu respuesta. Intentá nuevamente.", statusCode: 503);
+    }
+}).RequireAuthorization().WithTags("Mayor");
+
+app.MapGet("/api/acompanante/solicitudes", async (HttpContext contexto, IConfiguration config, CancellationToken ct) =>
+{
+    if (!contexto.User.IsInRole("ACOMPANANTE")) return Results.Forbid();
+    try
+    {
+        using var conexion = new MySqlConnection(config.GetConnectionString("MySql"));
+        await conexion.OpenAsync(ct);
+        using var comando = new MySqlCommand("""
+            SELECT m.nombre, m.apellido, v.tipo_vinculo, v.estado, DATE_FORMAT(v.fecha_vinculacion, '%Y-%m-%d')
+            FROM vinculacion v JOIN usuario m ON m.id_usuario = v.id_mayor
+            WHERE v.id_acompanante = @acompanante
+            ORDER BY v.fecha_vinculacion DESC, v.id_vinculacion DESC
+            """, conexion);
+        comando.Parameters.AddWithValue("@acompanante", int.Parse(contexto.User.FindFirstValue(ClaimTypes.NameIdentifier)!));
+        var solicitudes = new List<object>();
+        using var lector = await comando.ExecuteReaderAsync(ct);
+        while (await lector.ReadAsync(ct))
+            solicitudes.Add(new { nombre = lector.GetString(0), apellido = lector.GetString(1), tipoVinculo = lector.GetString(2),
+                estado = lector.GetString(3), fecha = lector.GetString(4) });
+        return Results.Ok(solicitudes);
+    }
+    catch (MySqlException ex)
+    {
+        app.Logger.LogError(ex, "No se pudieron cargar las solicitudes del acompañante.");
+        return Results.Problem(title: "No pudimos cargar tus solicitudes. Intentá nuevamente.", statusCode: 503);
+    }
+}).RequireAuthorization().WithTags("Acompañante");
+
+app.MapPost("/api/acompanante/solicitudes", async (EnviarSolicitudRequest solicitud, HttpContext contexto,
+    IConfiguration config, CancellationToken ct) =>
+{
+    if (!contexto.User.IsInRole("ACOMPANANTE")) return Results.Forbid();
+    var codigo = solicitud.Codigo?.Trim().ToUpperInvariant();
+    if (string.IsNullOrEmpty(codigo))
+        return Results.BadRequest(new { mensaje = "Ingresá el código de vinculación." });
+    if (solicitud.TipoVinculo is not ("Familiar" or "Cuidador"))
+        return Results.BadRequest(new { mensaje = "Elegí el tipo de vínculo." });
+    try
+    {
+        using var conexion = new MySqlConnection(config.GetConnectionString("MySql"));
+        await conexion.OpenAsync(ct);
+        using var comando = new MySqlCommand(
+            "SELECT id_usuario FROM usuario WHERE codigo_mayor = @codigo AND estado = TRUE AND tipo_usuario = 'MAYOR'", conexion);
+        comando.Parameters.AddWithValue("@codigo", codigo);
+        comando.Parameters.AddWithValue("@acompanante", int.Parse(contexto.User.FindFirstValue(ClaimTypes.NameIdentifier)!));
+        comando.Parameters.AddWithValue("@tipo", solicitud.TipoVinculo);
+        var idMayor = await comando.ExecuteScalarAsync(ct);
+        if (idMayor is null)
+            return Results.NotFound(new { mensaje = "No encontramos un adulto mayor con ese código." });
+        comando.Parameters.AddWithValue("@mayor", idMayor);
+
+        comando.CommandText = "SELECT estado FROM vinculacion WHERE id_mayor = @mayor AND id_acompanante = @acompanante";
+        var estado = await comando.ExecuteScalarAsync(ct) as string;
+        if (estado == "PENDIENTE")
+            return Results.Conflict(new { mensaje = "Ya enviaste una solicitud a esta persona. Esperá su respuesta." });
+        if (estado == "ACEPTADA")
+            return Results.Conflict(new { mensaje = "Ya acompañás a esta persona." });
+
+        comando.CommandText = estado == "RECHAZADA"
+            ? "UPDATE vinculacion SET estado = 'PENDIENTE', tipo_vinculo = @tipo, fecha_vinculacion = NOW() WHERE id_mayor = @mayor AND id_acompanante = @acompanante"
+            : "INSERT INTO vinculacion (id_mayor, id_acompanante, tipo_vinculo) VALUES (@mayor, @acompanante, @tipo)";
+        await comando.ExecuteNonQueryAsync(ct);
+        return Results.Ok(new { mensaje = "Solicitud enviada. Cuando la acepte, vas a poder ver su información." });
+    }
+    catch (MySqlException ex)
+    {
+        app.Logger.LogError(ex, "No se pudo enviar la solicitud de vinculación.");
+        return Results.Problem(title: "No pudimos enviar la solicitud. Intentá nuevamente.", statusCode: 503);
+    }
+}).RequireAuthorization().WithTags("Acompañante");
+
 app.MapGet("/api/acompanante/mayores/{idMayor:int}/recordatorios", async (int idMayor, DateOnly? desde, DateOnly? hasta,
     HttpContext contexto, RecordatorioRepository repositorio, CancellationToken ct) =>
 {
@@ -1072,6 +1268,10 @@ app.MapPost("/api/recordatorios/{idRecordatorio:int}/cumplimiento", async (int i
         if (!existe) return Results.NotFound(new { mensaje = "El recordatorio no existe." });
         if (yaRegistrado) return Results.Conflict(new { mensaje = "El cumplimiento ya fue registrado." });
         return Results.Json(new { mensaje = "Cumplimiento registrado." }, statusCode: 201);
+    }
+    catch (InvalidOperationException ex)
+    {
+        return Results.BadRequest(new { mensaje = ex.Message });
     }
     catch (MySqlException ex)
     {
