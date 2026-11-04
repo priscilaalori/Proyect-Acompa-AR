@@ -9,7 +9,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Carga los datos de la persona mayor
     async function cargarPanelMayor() {
         try {
-            const respuesta = await fetch("/api/mayor/panel", {
+            const respuesta = await fetch("/api/mayor/panel-web", {
                 method: "GET",
                 cache: "no-store"
             });

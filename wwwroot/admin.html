@@ -24,10 +24,43 @@
             <p id="vinculacionMensaje" role="status" aria-live="polite"></p>
             <form id="vinculacionForm" class="medicamento-form" hidden>
                 <h3 id="tituloFormularioVinculacion">Agregar vinculación</h3>
-                <label for="vinMayor">Persona mayor</label>
-                <select id="vinMayor" required></select>
-                <label for="vinAcompanante">Acompañante</label>
-                <select id="vinAcompanante" required></select>
+
+                <label for="buscarMayor">Persona mayor</label>
+                <div class="admin-fila-busqueda">
+                    <input id="buscarMayor"
+                           type="search"
+                           placeholder="Nombre, apellido, ID o código"
+                           autocomplete="off">
+
+                    <button id="botonBuscarMayor"
+                            type="button"
+                            class="panel-boton">
+                        Buscar
+                    </button>
+                </div>
+
+                <select id="vinMayor" required>
+                    <option value="">Buscá una persona mayor primero</option>
+                </select>
+
+                <label for="buscarAcompanante">Acompañante</label>
+                <div class="admin-fila-busqueda">
+                    <input id="buscarAcompanante"
+                           type="search"
+                           placeholder="Nombre, apellido, ID o correo"
+                           autocomplete="off">
+
+                    <button id="botonBuscarAcompanante"
+                            type="button"
+                            class="panel-boton">
+                        Buscar
+                    </button>
+                </div>
+
+                <select id="vinAcompanante" required>
+                    <option value="">Buscá un acompañante primero</option>
+                </select>
+
                 <label for="vinTipo">Tipo de vínculo</label>
                 <input id="vinTipo" required maxlength="50" autocomplete="off" placeholder="Ej.: Hija, Nieto">
                 <label for="vinEstado">Estado</label>
@@ -41,7 +74,65 @@
                     <button id="cancelarVinculacion" type="button" class="panel-boton">Cancelar</button>
                 </div>
             </form>
+            <div class="admin-filtros-vinculaciones">
+
+                <label for="tipoBusquedaVinculaciones">Buscar por</label>
+
+                <select id="tipoBusquedaVinculaciones">
+                    <option value="nombre">Nombre o apellido</option>
+                    <option value="vinculacion">ID de vinculación</option>
+                    <option value="mayor">ID de persona mayor</option>
+                    <option value="acompanante">ID de acompañante</option>
+                </select>
+
+                <label for="buscarVinculaciones">Buscar vinculación</label>
+
+                <div class="admin-fila-busqueda">
+                    <input type="search"
+                           id="buscarVinculaciones"
+                           placeholder="Nombre, apellido o ID"
+                           maxlength="100"
+                           autocomplete="off">
+
+                    <button type="button"
+                            id="botonBuscarVinculaciones"
+                            class="panel-boton">
+                        Buscar
+                    </button>
+                </div>
+
+                <label for="estadoVinculaciones">Filtrar por estado</label>
+
+                <select id="estadoVinculaciones">
+                    <option value="">Todos los estados</option>
+                    <option value="PENDIENTE">Pendientes</option>
+                    <option value="ACEPTADA">Aceptadas</option>
+                    <option value="RECHAZADA">Rechazadas</option>
+                </select>
+
+            </div>
+
+            <p id="resumenVinculaciones" role="status" aria-live="polite"></p>
+
             <ul id="vinculaciones" class="panel-lista"></ul>
+
+            <div class="admin-paginacion">
+
+                <button type="button"
+                        id="paginaAnterior"
+                        class="panel-boton">
+                    Anterior
+                </button>
+
+                <span id="paginaActual">Página 1</span>
+
+                <button type="button"
+                        id="paginaSiguiente"
+                        class="panel-boton">
+                    Siguiente
+                </button>
+
+            </div>
         </section>
     </main>
     <script src="js/admin.js"></script>
