@@ -212,5 +212,100 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // =====================================
+    // CONFIGURACIÓN DE ACCESIBILIDAD
+    // =====================================
+
+    const panelMayor = document.querySelector(".panel-mayor");
+
+    const botonesTamano = document.querySelectorAll(
+        ".boton-accesibilidad[data-tamano]"
+    );
+
+    const btnContraste = document.getElementById("btnContraste");
+
+    function aplicarTamano(tamano) {
+
+        if (!panelMayor) return;
+
+        panelMayor.classList.remove(
+            "tamano-grande",
+            "tamano-muy-grande"
+        );
+
+        if (tamano === "grande") {
+            panelMayor.classList.add("tamano-grande");
+        }
+
+        if (tamano === "muy-grande") {
+            panelMayor.classList.add("tamano-muy-grande");
+        }
+
+        botonesTamano.forEach(boton => {
+            boton.setAttribute(
+                "aria-pressed",
+                boton.dataset.tamano === tamano ? "true" : "false"
+            );
+        });
+
+        localStorage.setItem("mayorTamanoLetra", tamano);
+    }
+
+    // Recuperar tamaño guardado
+    const tamanoGuardado =
+        localStorage.getItem("mayorTamanoLetra") || "normal";
+
+    aplicarTamano(tamanoGuardado);
+
+    // Eventos de tamaño de letra
+    botonesTamano.forEach(boton => {
+
+        boton.addEventListener("click", () => {
+            aplicarTamano(boton.dataset.tamano);
+        });
+
+    });
+
+    // Alto contraste
+    function aplicarContraste(activado) {
+
+        if (!panelMayor || !btnContraste) return;
+
+        panelMayor.classList.toggle(
+            "alto-contraste",
+            activado
+        );
+
+        btnContraste.setAttribute(
+            "aria-pressed",
+            activado ? "true" : "false"
+        );
+
+        localStorage.setItem(
+            "mayorAltoContraste",
+            activado ? "true" : "false"
+        );
+    }
+
+    // Recuperar preferencia
+    const contrasteGuardado =
+        localStorage.getItem("mayorAltoContraste") === "true";
+
+    aplicarContraste(contrasteGuardado);
+
+    // Activar o desactivar contraste
+    if (btnContraste) {
+
+        btnContraste.addEventListener("click", () => {
+
+            const activado =
+                !panelMayor.classList.contains("alto-contraste");
+
+            aplicarContraste(activado);
+
+        });
+
+    }
+
     cargarPanelMayor();
 });

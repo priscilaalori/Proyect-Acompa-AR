@@ -728,6 +728,10 @@ body {
     color: #218739;
     font-weight: 700;
 }
+<<<<<<< HEAD
+
+=======
+>>>>>>> origin/feature/pri-panel-mayor
 /* =====================================
    PANEL DEL ACOMPAÑANTE
 
@@ -1459,6 +1463,7 @@ body {
         grid-column: 1 / -1;
     }
 }
+<<<<<<< HEAD
 
 
 /* Búsqueda de usuarios en el panel de Administración */
@@ -1559,3 +1564,490 @@ body {
     background-color: #fce9eb;
     color: #aa3944;
 }
+
+/* =====================================
+   REDISEÑO PANEL PERSONA MAYOR
+===================================== */
+
+.panel-mayor {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 28px 24px 50px;
+    color: #3d3650;
+}
+
+    /* ENCABEZADO */
+
+    .panel-mayor .encabezado-mayor {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+        padding: 0;
+        margin-bottom: 28px;
+        background: transparent;
+        color: #3d3650;
+        text-align: left;
+    }
+
+.marca-mayor {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.marca-icono {
+    font-size: 34px;
+}
+
+.marca-mayor h1 {
+    color: #7654b8;
+    font-size: 30px;
+    margin: 0 0 4px;
+}
+
+.marca-mayor p {
+    color: #716982;
+    font-size: 14px;
+    margin: 0;
+}
+
+.panel-mayor .boton-salir-mayor {
+    margin: 0;
+    padding: 11px 18px;
+    border: 1px solid #7654b8;
+    border-radius: 12px;
+    background: white;
+    color: #7654b8;
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+    .panel-mayor .boton-salir-mayor:hover {
+        background: #eee5ff;
+        color: #7654b8;
+    }
+
+/* BIENVENIDA */
+
+.panel-mayor .bienvenida-mayor {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    min-height: auto;
+    padding: 28px;
+    margin-bottom: 24px;
+    border-radius: 20px;
+    background: #eee5ff;
+}
+
+    .panel-mayor .bienvenida-mayor h2 {
+        margin: 0 0 10px;
+        color: #7654b8;
+        font-size: 28px;
+    }
+
+    .panel-mayor .bienvenida-mayor p {
+        margin: 0;
+        color: #514966;
+        font-size: 18px;
+        line-height: 1.6;
+    }
+
+.bienvenida-icono {
+    font-size: 48px;
+    flex: none;
+}
+
+/* SECCIONES PRINCIPALES */
+
+.panel-mayor .seccion-mayor {
+    padding: 26px;
+    margin-bottom: 22px;
+    border: none;
+    border-radius: 20px;
+    background: white;
+    box-shadow: 0 8px 30px rgba(90, 70, 120, 0.10);
+}
+
+    .panel-mayor .seccion-mayor h2 {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 0 0 6px;
+        color: #7654b8;
+        font-size: 23px;
+    }
+
+        .panel-mayor .seccion-mayor h2 span {
+            display: inline-grid;
+            place-items: center;
+            width: 42px;
+            height: 42px;
+            flex: none;
+            border-radius: 12px;
+            background: #f5f0ff;
+            font-size: 23px;
+        }
+
+.panel-mayor .descripcion-seccion {
+    margin: 0 0 18px;
+    color: #716982;
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+/* TARJETAS GENERADAS POR JAVASCRIPT */
+
+.panel-mayor .tarjeta-mayor {
+    padding: 20px;
+    margin: 14px 0 0;
+    border: 1px solid #e6ddf5;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 3px 10px rgba(70, 40, 110, 0.05);
+}
+
+    .panel-mayor .tarjeta-mayor h3 {
+        margin: 0 0 14px;
+        color: #7654b8;
+        font-size: 19px;
+    }
+
+    .panel-mayor .tarjeta-mayor p {
+        margin: 8px 0;
+        color: #514966;
+        font-size: 17px;
+        line-height: 1.6;
+        overflow-wrap: anywhere;
+    }
+
+        .panel-mayor .tarjeta-mayor p strong {
+            color: #35234f;
+        }
+
+.panel-mayor .estado-cancelado {
+    color: #c62828;
+    font-weight: 700;
+}
+
+.panel-mayor .estado-programado {
+    color: #218739;
+    font-weight: 700;
+}
+
+/* MENSAJES Y ESTADOS */
+
+.panel-mayor [aria-live="polite"] > p {
+    color: #514966;
+    font-size: 17px;
+    line-height: 1.6;
+}
+
+/* ACCESIBILIDAD: FOCO VISIBLE */
+
+.panel-mayor button:focus-visible {
+    outline: 3px solid #9675d0;
+    outline-offset: 4px;
+}
+
+/* ADAPTACIÓN A CELULARES */
+
+@media (max-width: 600px) {
+
+    .panel-mayor {
+        padding: 20px 14px 35px;
+    }
+
+        .panel-mayor .encabezado-mayor {
+            flex-wrap: wrap;
+            gap: 14px;
+        }
+
+    .marca-mayor h1 {
+        font-size: 25px;
+    }
+
+    .panel-mayor .boton-salir-mayor {
+        width: 100%;
+    }
+
+    .panel-mayor .bienvenida-mayor {
+        padding: 22px;
+    }
+
+        .panel-mayor .bienvenida-mayor h2 {
+            font-size: 24px;
+        }
+
+    .bienvenida-icono {
+        font-size: 36px;
+    }
+
+    .panel-mayor .seccion-mayor {
+        padding: 20px;
+    }
+
+        .panel-mayor .seccion-mayor h2 {
+            font-size: 20px;
+        }
+
+    .panel-mayor .tarjeta-mayor {
+        padding: 16px;
+    }
+}
+
+
+/* =====================================
+   ACCESIBILIDAD PANEL MAYOR
+===================================== */
+
+.accesibilidad-mayor {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 14px;
+    padding: 16px 20px;
+    margin-bottom: 22px;
+    background: white;
+    border: 1px solid #e6ddf5;
+    border-radius: 16px;
+    box-shadow: 0 4px 15px rgba(90, 70, 120, .06);
+}
+
+.accesibilidad-titulo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #7654b8;
+    font-size: 17px;
+}
+
+.accesibilidad-controles {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.control-texto {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: #3d3650;
+    font-size: 15px;
+}
+
+.boton-accesibilidad {
+    min-width: 42px;
+    min-height: 42px;
+    padding: 8px 12px;
+    border: 1px solid #9675d0;
+    border-radius: 9px;
+    background: white;
+    color: #7654b8;
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+    .boton-accesibilidad:hover,
+    .boton-accesibilidad[aria-pressed="true"] {
+        background: #7654b8;
+        color: white;
+    }
+
+.boton-contraste {
+    padding: 10px 14px;
+}
+
+/* TAMAÑOS DE LETRA */
+
+.panel-mayor.tamano-grande .bienvenida-mayor p,
+.panel-mayor.tamano-grande .tarjeta-mayor p,
+.panel-mayor.tamano-grande .descripcion-seccion {
+    font-size: 20px;
+}
+
+
+/* Búsqueda de usuarios en el panel de Administración */
+
+.admin-fila-busqueda {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+}
+
+.admin-fila-busqueda input {
+    flex: 1;
+    min-width: 0;
+}
+
+.admin-fila-busqueda .panel-boton {
+    padding: 10px 16px;
+    white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+    .admin-fila-busqueda {
+        flex-direction: column;
+    }
+}
+
+/* Filtros y paginación de Administración */
+
+.admin-filtros-vinculaciones {
+    display: grid;
+    gap: 10px;
+    margin: 24px 0 18px;
+}
+
+.admin-filtros-vinculaciones input,
+.admin-filtros-vinculaciones select {
+    width: 100%;
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid #9675d0;
+    border-radius: 10px;
+    font: inherit;
+    background: white;
+ }
+
+#resumenVinculaciones {
+    margin: 16px 0;
+    color: #514966;
+    font-size: 14px;
+}
+
+.admin-paginacion {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    margin-top: 24px;
+    flex-wrap: wrap;
+}
+
+.admin-paginacion .panel-boton {
+    padding: 10px 16px;
+}
+
+.admin-paginacion .panel-boton:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+@media (max-width: 600px) {
+    .admin-paginacion {
+        gap: 10px;
+    }
+}
+
+/* Colores de estado de vinculaciónes */
+
+.panel-lista .estado-vinculacion {
+    display: inline-block;
+    padding: 5px 10px;
+    margin: 6px 0;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.panel-lista .estado-aceptada {
+    background-color: #e8f6ed;
+    color: #237447;
+}
+
+.panel-lista .estado-pendiente {
+    background-color: #fff3dc;
+    color: #95610d;
+}
+
+.panel-lista .estado-rechazada {
+    background-color: #fce9eb;
+    color: #aa3944;
+}
+
+.panel-mayor.tamano-grande .tarjeta-mayor h3 {
+    font-size: 22px;
+}
+
+.panel-mayor.tamano-muy-grande .bienvenida-mayor p,
+.panel-mayor.tamano-muy-grande .tarjeta-mayor p,
+.panel-mayor.tamano-muy-grande .descripcion-seccion {
+    font-size: 23px;
+}
+
+.panel-mayor.tamano-muy-grande .tarjeta-mayor h3 {
+    font-size: 25px;
+}
+
+/* ALTO CONTRASTE */
+
+.panel-mayor.alto-contraste {
+    background: #fff;
+    color: #000;
+}
+
+body:has(.panel-mayor.alto-contraste) {
+    background: #fff;
+}
+
+.panel-mayor.alto-contraste .bienvenida-mayor {
+    background: #e5e5e5;
+}
+
+    .panel-mayor.alto-contraste .bienvenida-mayor h2,
+    .panel-mayor.alto-contraste .seccion-mayor h2,
+    .panel-mayor.alto-contraste .marca-mayor h1 {
+        color: #000;
+    }
+
+.panel-mayor.alto-contraste .seccion-mayor,
+.panel-mayor.alto-contraste .tarjeta-mayor,
+.panel-mayor.alto-contraste .accesibilidad-mayor {
+    background: #fff;
+    border: 2px solid #000;
+    box-shadow: none;
+}
+
+.panel-mayor.alto-contraste p,
+.panel-mayor.alto-contraste strong,
+.panel-mayor.alto-contraste .descripcion-seccion {
+    color: #000;
+}
+
+.panel-mayor.alto-contraste button {
+    border: 2px solid #000;
+    color: #000;
+    background: #fff;
+}
+
+    .panel-mayor.alto-contraste button:hover,
+    .panel-mayor.alto-contraste button[aria-pressed="true"] {
+        background: #000;
+        color: #fff;
+    }
+
+@media (max-width: 600px) {
+    .accesibilidad-mayor {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .accesibilidad-controles {
+        width: 100%;
+    }
+
+    .control-texto {
+        flex-wrap: wrap;
+    }
+
+=======
+>>>>>>> origin/feature/pri-panel-mayor

@@ -7,28 +7,95 @@
     <link rel="stylesheet" href="css/Style.css">
 </head>
 <body>
+
     <main class="panel-mayor">
 
+        <!-- ENCABEZADO -->
         <header class="encabezado-mayor">
-            <h1>AcompañAR</h1>
-            <p>Tu espacio personal</p>
+
+            <div class="marca-mayor">
+                <span class="marca-icono" aria-hidden="true">💜</span>
+                <div>
+                    <h1>AcompañAR</h1>
+                    <p>Recordar. Acompañar. Proteger.</p>
+                </div>
+            </div>
 
             <button type="button"
                     id="btnCerrarSesion"
                     class="boton-salir-mayor">
                 Cerrar sesión
             </button>
-        </header>
 
-        <section class="bienvenida-mayor">
-            <h2 id="saludoMayor">¡Hola!</h2>
-            <p>Acá podés consultar tu información personal.</p>
+        </header>
+        <!-- ACCESIBILIDAD -->
+        <section class="accesibilidad-mayor"
+                 aria-label="Opciones de accesibilidad">
+
+            <div class="accesibilidad-titulo">
+                <span aria-hidden="true">⚙️</span>
+                <strong>Accesibilidad</strong>
+            </div>
+
+            <div class="accesibilidad-controles">
+
+                <div class="control-texto">
+                    <span>Tamaño de letra:</span>
+
+                    <button type="button"
+                            class="boton-accesibilidad"
+                            data-tamano="normal"
+                            aria-label="Tamaño de letra normal">
+                        A
+                    </button>
+
+                    <button type="button"
+                            class="boton-accesibilidad"
+                            data-tamano="grande"
+                            aria-label="Agrandar letra">
+                        A+
+                    </button>
+
+                    <button type="button"
+                            class="boton-accesibilidad"
+                            data-tamano="muy-grande"
+                            aria-label="Agrandar mucho la letra">
+                        A++
+                    </button>
+                </div>
+
+                <button type="button"
+                        id="btnContraste"
+                        class="boton-accesibilidad boton-contraste"
+                        aria-pressed="false">
+                    ◐ Alto contraste
+                </button>
+
+            </div>
+
         </section>
-        <!-- CONTACTOS DE CONFIANZA -->
+
+        <!-- BIENVENIDA -->
+        <section class="bienvenida-mayor">
+            <div>
+                <h2 id="saludoMayor">¡Hola!</h2>
+                <p>Acá podés consultar tu información personal.</p>
+            </div>
+            <span class="bienvenida-icono" aria-hidden="true">👋</span>
+        </section>
+
+        <!-- CONTACTOS -->
         <section class="seccion-mayor"
                  aria-labelledby="tituloContactosMayor">
 
-            <h2 id="tituloContactosMayor">Mis contactos importantes</h2>
+            <h2 id="tituloContactosMayor">
+                <span aria-hidden="true">📞</span>
+                Mis contactos importantes
+            </h2>
+
+            <p class="descripcion-seccion">
+                Personas con las que podés comunicarte.
+            </p>
 
             <div id="listaContactosMayor" aria-live="polite">
                 <p>Cargando tus contactos...</p>
@@ -40,7 +107,14 @@
         <section class="seccion-mayor"
                  aria-labelledby="tituloTurnosMayor">
 
-            <h2 id="tituloTurnosMayor">Mis turnos médicos</h2>
+            <h2 id="tituloTurnosMayor">
+                <span aria-hidden="true">🩺</span>
+                Mis turnos médicos
+            </h2>
+
+            <p class="descripcion-seccion">
+                Consultá tus próximas citas médicas.
+            </p>
 
             <div id="listaTurnosMayor" aria-live="polite">
                 <p>Cargando tus turnos...</p>
@@ -52,7 +126,14 @@
         <section class="seccion-mayor"
                  aria-labelledby="tituloRecordatoriosMayor">
 
-            <h2 id="tituloRecordatoriosMayor">Mis recordatorios</h2>
+            <h2 id="tituloRecordatoriosMayor">
+                <span aria-hidden="true">🔔</span>
+                Mis recordatorios
+            </h2>
+
+            <p class="descripcion-seccion">
+                No te olvides de tus actividades importantes.
+            </p>
 
             <div id="listaRecordatoriosMayor" aria-live="polite">
                 <p>Cargando tus recordatorios...</p>
@@ -60,10 +141,9 @@
 
         </section>
 
-
-
     </main>
 
     <script src="js/Mayor.js"></script>
+
 </body>
 </html>
