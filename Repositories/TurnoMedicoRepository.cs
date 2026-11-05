@@ -67,6 +67,7 @@ public sealed class TurnoMedicoRepository
                 WHERE id_turno = @id
                   AND id_mayor = @mayor
                   AND estado = 'PROGRAMADO'
+                  AND TIMESTAMP(fecha, hora) > NOW()
                 FOR UPDATE;
                 """;
 

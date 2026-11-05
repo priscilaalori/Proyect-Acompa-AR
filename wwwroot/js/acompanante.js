@@ -124,9 +124,9 @@ async function cargar() {
         await buscarRecordatorios();
         mostrarLista("turnos", datos.turnos, "No hay turnos médicos configurados.", t => [
             t.especialidad, `Profesional: ${t.medico}`, `${fecha(t.fecha)} · ${t.hora}`,
-            t.direccion, t.motivo ? `Motivo: ${t.motivo}` : null, `Estado: ${estados[t.estado] || t.estado}`
+            t.direccion, t.motivo ? `Motivo: ${t.motivo}` : null, `Estado: ${t.estado === "PROGRAMADO" && new Date(`${t.fecha}T${t.hora}:00`) < new Date() ? "Vencido" : estados[t.estado] || t.estado}`
         ]);
-        document.getElementById("cantidadTurnos").textContent = datos.turnos.filter(t => t.estado === "PROGRAMADO").length;
+        document.getElementById("cantidadTurnos").textContent = datos.turnos.filter(t => t.estado === "PROGRAMADO" && new Date(`${t.fecha}T${t.hora}:00`) >= new Date()).length;
         turnosAlertas = datos.turnos;
         await cargarAlertas();
         const proximos = datos.recordatorios.filter(r => r.estado !== "CANCELADO");
@@ -278,7 +278,7 @@ function agregarAcciones(item, medicamento) {
 }
 function agregarAccionesTurno(item, turno) {
    
-    if (turno.estado !== "PROGRAMADO") return;
+    if (turno.estado !== "PROGRAMADO" || new Date(`${turno.fecha}T${turno.hora}:00`) < new Date()) return;
 
     const acciones = document.createElement("div");
     acciones.className = "medicamento-acciones";
