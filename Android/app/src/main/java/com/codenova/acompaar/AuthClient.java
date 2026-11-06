@@ -13,7 +13,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
-/** Conserva la cookie de sesión sin almacenar la contraseña. */
 final class AuthClient {
     private final CookieManager cookies = new CookieManager(null, CookiePolicy.ACCEPT_ORIGINAL_SERVER);
     private final SessionStorage storage;
@@ -106,7 +105,6 @@ final class AuthClient {
         synchronized (REQUEST_LOCK) { return send(path, body, activityAt); }
     }
     private JSONObject send(String path, JSONObject body, long activityAt) throws Exception {
-        // A notification may have renewed the persisted cookie while the Activity was stopped.
         synchronized (SESSION_LOCK) {
             if (sessionId != null) {
                 JSONObject latest = storage.load();

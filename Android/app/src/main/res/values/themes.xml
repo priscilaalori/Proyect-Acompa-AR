@@ -1,12 +1,29 @@
-﻿<resources>
-    <style name="Base.Theme.Acompañar" parent="Theme.Material3.Light.NoActionBar">
-        <item name="colorPrimary">#7654B8</item>
-        <item name="colorOnPrimary">#FFFFFF</item>
-        <item name="colorSecondary">#7654B8</item>
-        <item name="android:colorBackground">#F5F0FF</item>
-        <item name="colorSurface">#FFFFFF</item>
-        <item name="colorOnSurface">#3D3650</item>
-        <item name="android:windowLightStatusBar">true</item>
+<resources>
+    <style name="Base.Theme.Acompañar" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/app_primary</item>
+        <item name="colorOnPrimary">@color/app_on_primary</item>
+        <item name="colorSecondary">@color/app_primary</item>
+        <item name="android:colorBackground">@color/app_background</item>
+        <item name="colorSurface">@color/app_surface</item>
+        <item name="colorSecondaryContainer">@color/app_secondary</item>
+        <item name="colorOnSecondaryContainer">@color/app_text</item>
+        <item name="colorOnSurfaceVariant">@color/app_text</item>
+        <item name="colorOutline">@color/app_outline</item>
+        <item name="colorOnSurface">@color/app_text</item>
+        <item name="android:windowLightStatusBar">@bool/light_system_bars</item>
+
     </style>
     <style name="Theme.Acompañar" parent="Base.Theme.Acompañar"/>
+    <style name="Theme.AccessibleContrast" parent="Theme.Acompañar">
+        <item name="android:colorBackground">@color/contrast_background</item>
+        <item name="colorSurface">@color/contrast_background</item>
+        <item name="colorOnSurface">@color/contrast_text</item>
+        <item name="colorOnSurfaceVariant">@color/contrast_text</item>
+        <item name="colorPrimary">@color/contrast_primary</item>
+        <item name="colorOnPrimary">@color/contrast_on_primary</item>
+        <item name="colorSecondary">@color/contrast_primary</item>
+        <item name="colorSecondaryContainer">@color/contrast_background</item>
+        <item name="colorOnSecondaryContainer">@color/contrast_text</item>
+        <item name="colorOutline">@color/contrast_text</item>
+    </style>
 </resources>

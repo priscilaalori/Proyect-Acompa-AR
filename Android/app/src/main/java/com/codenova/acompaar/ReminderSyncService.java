@@ -9,7 +9,6 @@ import android.content.Context;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/** Network constrained jobs survive process death and retry transient failures. */
 public final class ReminderSyncService extends JobService {
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final java.util.Set<JobParameters> stopped = java.util.concurrent.ConcurrentHashMap.newKeySet();

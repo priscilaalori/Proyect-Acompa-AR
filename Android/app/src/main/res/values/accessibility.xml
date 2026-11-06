@@ -1,0 +1,14 @@
+<resources>
+    <color name="app_primary">#7654B8</color>
+    <color name="app_on_primary">#FFFFFF</color>
+    <color name="app_background">#F5F0FF</color>
+    <color name="app_surface">#FFFFFF</color>
+    <color name="app_text">#3D3650</color>
+    <color name="app_secondary">#EEE5FF</color>
+    <color name="app_outline">#75687F</color>
+    <color name="contrast_background">#FFFFFF</color>
+    <color name="contrast_text">#000000</color>
+    <color name="contrast_primary">#000000</color>
+    <color name="contrast_on_primary">#FFFFFF</color>
+    <bool name="light_system_bars">true</bool>
+</resources>

@@ -1,6 +1,5 @@
 package com.codenova.acompaar;
 
-/** Spoken wording uses only the same fields displayed in the reminder. */
 final class ReminderSpeechText {
     private ReminderSpeechText() { }
 

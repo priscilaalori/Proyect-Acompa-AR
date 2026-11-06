@@ -1,5 +1,5 @@
 <resources>
     <style name="Theme.Acompañar" parent="Base.Theme.Acompañar">
-        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:windowLightNavigationBar">@bool/light_system_bars</item>
     </style>
 </resources>
