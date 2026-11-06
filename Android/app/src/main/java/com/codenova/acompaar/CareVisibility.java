@@ -3,7 +3,6 @@ package com.codenova.acompaar;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 
-/** Solo muestra hoy y mañana; las respuestas de hoy siguen disponibles hasta terminar el día. */
 final class CareVisibility {
     private CareVisibility() { }
 

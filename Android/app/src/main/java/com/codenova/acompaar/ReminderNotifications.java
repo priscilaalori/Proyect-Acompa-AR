@@ -19,7 +19,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.ZoneId;
 import java.util.Iterator;
 
-/** Cached reminders and outbox are private, excluded from backups and scoped to one account. */
 final class ReminderNotifications {
     private static final String CHANNEL = "care_reminders";
     private static final Object NETWORK_LOCK = new Object();
@@ -178,7 +177,7 @@ final class ReminderNotifications {
         JSONObject shown = object(data, "shown");
         if (!item.has("idRecordatorio") || shown.has(key) || object(data, "outbox").has(key)
             || time(item) > System.currentTimeMillis()) return;
-        // Avoid replaying historic reminders after installation or a long absence.
+        // No vuelvo a avisar sobre tomas o turnos de días anteriores.
         if (!ReminderTiming.dueToday(item.optString("fecha"), item.optString("hora"),
             System.currentTimeMillis(), ZoneId.systemDefault())) return;
         if (!manager(c).areNotificationsEnabled()) return;

@@ -39,6 +39,9 @@ public class MainActivity extends AppCompatActivity {
     private String careScreen = "HOME";
     private JSONObject carePanel;
     private long foregroundActivityAt;
+    private boolean resumed;
+    private androidx.appcompat.app.AlertDialog fraudTipDialog;
+    private final Runnable showScheduledFraudTip = this::checkScheduledFraudTip;
     private final Map<String, TextView> menuBadges = new LinkedHashMap<>();
     private final Map<String, MaterialButton> menuEntries = new LinkedHashMap<>();
     private final android.os.Handler careHandler = new android.os.Handler(android.os.Looper.getMainLooper());
@@ -48,7 +51,41 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
+    private android.content.SharedPreferences accessibilityPreferences() {
+        return getSharedPreferences("accessibility", MODE_PRIVATE);
+    }
+    @Override protected void attachBaseContext(android.content.Context base) {
+        android.content.res.Configuration config = new android.content.res.Configuration(base.getResources().getConfiguration());
+        int size = base.getSharedPreferences("accessibility", MODE_PRIVATE).getInt("textSize", 0);
+        config.fontScale *= size == 2 ? 1.5f : size == 1 ? 1.25f : 1f;
+        super.attachBaseContext(base.createConfigurationContext(config));
+    }
+    private int themeColor(int attribute) {
+        android.util.TypedValue value = new android.util.TypedValue();
+        getTheme().resolveAttribute(attribute, value, true);
+        return value.data;
+    }
+    private int foregroundColor() { return themeColor(com.google.android.material.R.attr.colorOnSurface); }
+    private int accentColor() { return themeColor(androidx.appcompat.R.attr.colorPrimary); }
+    private int secondaryColor() { return themeColor(com.google.android.material.R.attr.colorSecondaryContainer); }
+    private static final class RetainedSession {
+        final AuthClient api;
+        final JSONObject user;
+        RetainedSession(AuthClient api, JSONObject user) { this.api = api; this.user = user; }
+    }
+    @Override public Object onRetainCustomNonConfigurationInstance() {
+        return new RetainedSession(api, currentUser);
+    }
+    @Override protected void onSaveInstanceState(Bundle state) {
+        if (careScreen.startsWith("ACCESSIBILITY")) state.putString("accessibilityScreen", careScreen);
+        super.onSaveInstanceState(state);
+    }
     @Override public void onCreate(Bundle state) {
+        int theme = accessibilityPreferences().getInt("theme", 0);
+        getDelegate().setLocalNightMode(theme == 1 ? androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO
+            : theme == 2 ? androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES
+            : androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
+        if (accessibilityPreferences().getBoolean("contrast", false)) setTheme(R.style.Theme_AccessibleContrast);
         super.onCreate(state);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
@@ -60,12 +97,15 @@ public class MainActivity extends AppCompatActivity {
         content = findViewById(R.id.content);
         getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
             @Override public void handleOnBackPressed() {
-                if (currentUser != null && !"HOME".equals(careScreen)) showWelcome(currentUser);
+                if (careScreen.startsWith("ACCESSIBILITY_")) showAccessibility();
+                else if ("ACCESSIBILITY".equals(careScreen) && currentUser == null) showLogin();
+                else if (currentUser != null && !"HOME".equals(careScreen)) showWelcome(currentUser);
                 else { setEnabled(false); getOnBackPressedDispatcher().onBackPressed(); setEnabled(true); }
             }
         });
-        api = new AuthClient(this);
-        JSONObject savedUser = api.restoreSession();
+        RetainedSession retained = (RetainedSession) getLastCustomNonConfigurationInstance();
+        api = retained != null ? retained.api : new AuthClient(this);
+        JSONObject savedUser = retained != null ? retained.user : api.restoreSession();
         if (savedUser == null) showLogin();
         else if (!savedUser.has("codigoMayor")) {
             api.clearSession();
@@ -73,6 +113,13 @@ public class MainActivity extends AppCompatActivity {
             message.setText("Ingresá una vez más para ver tu código de vinculación. Después podremos recordar tu sesión.");
         }
         else showWelcome(savedUser);
+        if (state != null) {
+            String screen = state.getString("accessibilityScreen", "");
+            if ("ACCESSIBILITY_FRAUD".equals(screen)) showFraudSettings();
+            else if ("ACCESSIBILITY_SOUND".equals(screen)) showSoundSettings();
+            else if ("ACCESSIBILITY_APPEARANCE".equals(screen)) showAppearanceSettings();
+            else if ("ACCESSIBILITY".equals(screen) || state.getBoolean("accessibilityOpen")) showAccessibility();
+        }
     }
     private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
     private TextView text(String value, int size, boolean heading) {
@@ -82,7 +129,7 @@ public class MainActivity extends AppCompatActivity {
         TextView view = new TextView(this);
         view.setText(value);
         view.setTextSize(size);
-        view.setTextColor(android.graphics.Color.parseColor("#3D3650"));
+        view.setTextColor(foregroundColor());
         ViewCompat.setAccessibilityHeading(view, heading);
         if (heading) view.setTypeface(null, android.graphics.Typeface.BOLD);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
@@ -100,7 +147,7 @@ public class MainActivity extends AppCompatActivity {
     private void addBackButton() {
         MaterialButton back = button("Volver", false, this::showLogin);
         back.setIconResource(R.drawable.ic_arrow_back);
-        back.setIconTint(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#7654B8")));
+        back.setIconTint(android.content.res.ColorStateList.valueOf(accentColor()));
         back.setContentDescription("Volver al inicio de sesión");
         back.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.TRANSPARENT));
         back.setElevation(0);
@@ -132,13 +179,19 @@ public class MainActivity extends AppCompatActivity {
     private MaterialButton button(String label, boolean primary, Runnable action, LinearLayout parent) {
         MaterialButton button = new MaterialButton(this);
         if (!primary) {
-            button.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#EEE5FF")));
-            button.setTextColor(android.graphics.Color.parseColor("#7654B8"));
+            button.setBackgroundTintList(android.content.res.ColorStateList.valueOf(secondaryColor()));
+            button.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSecondaryContainer));
+            if (accessibilityPreferences().getBoolean("contrast", false)) {
+                button.setStrokeWidth(dp(2));
+                button.setStrokeColor(android.content.res.ColorStateList.valueOf(foregroundColor()));
+            }
         }
         button.setText(label); button.setTextSize(18); button.setAllCaps(false);
-        button.setMinHeight(dp(56)); button.setCornerRadius(dp(12));
+        button.setMinHeight(dp(64)); button.setCornerRadius(dp(12));
+        button.setSingleLine(false); button.setMaxLines(Integer.MAX_VALUE);
+        button.setPadding(dp(16), dp(16), dp(16), dp(16));
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
-        params.topMargin = dp(8); parent.addView(button, params);
+        params.topMargin = dp(12); parent.addView(button, params);
         button.setOnClickListener(v -> { if (!busy) action.run(); });
         return button;
     }
@@ -155,6 +208,7 @@ public class MainActivity extends AppCompatActivity {
             .setAutofillHints(View.AUTOFILL_HINT_PASSWORD);
     }
     private void showLogin() {
+        careScreen = "LOGIN";
         currentUser = null;
         carePanel = null;
         careGeneration++;
@@ -172,6 +226,7 @@ public class MainActivity extends AppCompatActivity {
         button("Olvidé mi contraseña", false, this::showRecovery);
         text("¿Es tu primera vez?", 18, false);
         button("Crear mi cuenta", false, this::showRegister);
+        button("Accesibilidad", false, this::showAccessibility);
     }
     private void showRegister() {
         reset("Creá tu cuenta", "Completá tus datos. Vamos paso a paso.");
@@ -257,10 +312,10 @@ public class MainActivity extends AppCompatActivity {
             R.drawable.ic_invitation, "SOLICITUDES");
         menuButton("Compartir mi código", "Vincularme con quien me acompaña", R.drawable.ic_share,
             () -> shareLinkingCode(user));
-        button("Configurar notificaciones", false, this::configureNotifications);
-        button("Lectura en voz alta", false, this::configureVoice);
-        button("Cerrar sesión", false, () -> { ReminderNotifications.clear(this); api.clearSession(); showLogin(); });
+        button("Accesibilidad", false, this::showAccessibility);
+        button("Cerrar sesión", false, () -> { FraudTipNotifications.disable(this); ReminderNotifications.clear(this); api.clearSession(); showLogin(); });
         ReminderNotifications.activate(this, user);
+        FraudTipNotifications.activate(this);
         if (android.os.Build.VERSION.SDK_INT >= 33
             && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
                 != android.content.pm.PackageManager.PERMISSION_GRANTED
@@ -271,6 +326,55 @@ public class MainActivity extends AppCompatActivity {
         careHandler.removeCallbacks(refreshCare);
         updateMenuBadges();
         careHandler.post(refreshCare);
+        scheduleFraudTip();
+    }
+    private void scheduleFraudTip() {
+        careHandler.removeCallbacks(showScheduledFraudTip);
+        if (resumed && currentUser != null && "HOME".equals(careScreen))
+            careHandler.postDelayed(showScheduledFraudTip, 800);
+    }
+    private void checkScheduledFraudTip() {
+        showFraudTip();
+        if (resumed && currentUser != null && "HOME".equals(careScreen))
+            careHandler.postDelayed(showScheduledFraudTip, 60_000);
+    }
+    @Override public void onWindowFocusChanged(boolean focused) {
+        super.onWindowFocusChanged(focused);
+        if (focused) scheduleFraudTip();
+    }
+    private void showFraudTip() {
+        if (!resumed || busy || isFinishing() || isDestroyed() || !hasWindowFocus()
+            || (fraudTipDialog != null && fraudTipDialog.isShowing())) return;
+        if (currentUser == null || !"HOME".equals(careScreen)) return;
+        int index = FraudTipNotifications.claimTip(this);
+        if (index >= 0) showFraudTip(index);
+    }
+    private void showFraudTip(int index) {
+        android.widget.ScrollView scroll = new android.widget.ScrollView(this);
+        LinearLayout body = new LinearLayout(this);
+        body.setOrientation(LinearLayout.VERTICAL);
+        body.setPadding(dp(24), dp(24), dp(24), dp(16));
+        scroll.addView(body);
+        text("Para cuidarte de las estafas", 24, true, body);
+        text(FraudPrevention.title(index), 22, true, body);
+        text(FraudPrevention.message(index), 20, false, body);
+        button("Entendido", true, () -> fraudTipDialog.dismiss(), body);
+        fraudTipDialog = new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setView(scroll).create();
+        fraudTipDialog.show();
+    }
+    private void openFraudNotification() {
+        if (!getIntent().hasExtra(FraudTipNotifications.TIP_EXTRA)) return;
+        int index = getIntent().getIntExtra(FraudTipNotifications.TIP_EXTRA, -1);
+        getIntent().removeExtra(FraudTipNotifications.TIP_EXTRA);
+        if (index < 0) return;
+        if (fraudTipDialog != null) fraudTipDialog.dismiss();
+        showFraudTip(index);
+    }
+    @Override protected void onNewIntent(android.content.Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        if (resumed) openFraudNotification();
     }
     private void menuButton(String title, String description, int icon, String screen) {
         menuButton(title, description, icon, () -> showCareScreen(screen));
@@ -343,7 +447,7 @@ public class MainActivity extends AppCompatActivity {
         entry.setIconResource(icon);
         entry.setIconSize(dp(48));
         entry.setIconPadding(dp(20));
-        entry.setIconTint(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#7654B8")));
+        entry.setIconTint(android.content.res.ColorStateList.valueOf(accentColor()));
         entry.setContentDescription(title + ". " + description);
         LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) entry.getLayoutParams();
         params.bottomMargin = dp(20);
@@ -396,7 +500,7 @@ public class MainActivity extends AppCompatActivity {
                         message.setText("La sesión venció. Ingresá nuevamente para continuar.");
                         return;
                     }
-                    if (isDestroyed() || generation != careGeneration || "HOME".equals(careScreen)) return;
+                    if (isDestroyed() || generation != careGeneration || !isCareScreen()) return;
                     careContent.removeAllViews();
                     text(e instanceof AuthClient.ApiException ? e.getMessage()
                         : "No pudimos cargar la información. Revisá tu conexión y volvé a intentar.", 18, false, careContent);
@@ -409,7 +513,12 @@ public class MainActivity extends AppCompatActivity {
         try { return LocalDate.parse(date).format(DateTimeFormatter.ofPattern("dd/MM/yyyy")); }
         catch (Exception e) { return date; }
     }
+    private boolean isCareScreen() {
+        return "MEDICAMENTO".equals(careScreen) || "TURNO".equals(careScreen)
+            || "CONTACTOS".equals(careScreen) || "SOLICITUDES".equals(careScreen);
+    }
     private void renderCare(JSONObject panel) {
+        if (!isCareScreen()) return;
         careContent.removeAllViews();
         if ("CONTACTOS".equals(careScreen)) { renderContacts(panel); return; }
         if ("SOLICITUDES".equals(careScreen)) { renderInvitations(panel); return; }
@@ -505,7 +614,7 @@ public class MainActivity extends AppCompatActivity {
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(dp(16), dp(16), dp(16), dp(16));
         android.graphics.drawable.GradientDrawable background = new android.graphics.drawable.GradientDrawable();
-        background.setColor(android.graphics.Color.parseColor("#F5EFFF"));
+        background.setColor(secondaryColor());
         background.setCornerRadius(dp(16));
         card.setBackground(background);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
@@ -717,6 +826,189 @@ public class MainActivity extends AppCompatActivity {
             careHandler.post(refreshCare);
         }
     }
+    private void showAccessibility() {
+        careScreen = "ACCESSIBILITY";
+        reset("Accesibilidad", "Elegí qué querés configurar.");
+        button("Volver", false, () -> { if (currentUser == null) showLogin(); else showWelcome(currentUser); });
+        accessibilitySection("Prevenir estafas", "Frecuencia de los consejos y horario de descanso", this::showFraudSettings);
+        accessibilitySection("Sonido y permisos", "Notificaciones, sonido y lectura en voz alta", this::showSoundSettings);
+        accessibilitySection("Apariencia", "Tamaño de letra, tema y alto contraste", this::showAppearanceSettings);
+    }
+    private void accessibilitySection(String title, String description, Runnable action) {
+        MaterialButton entry = button(title + "\n" + description, false, action);
+        entry.setTextSize(20);
+        entry.setMinHeight(dp(112));
+        entry.setPadding(dp(20), dp(24), dp(20), dp(24));
+        entry.setContentDescription(title + ". " + description);
+        LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) entry.getLayoutParams();
+        params.topMargin = dp(20);
+    }
+    private void accessibilityPage(String screen, String title, String description) {
+        careScreen = screen;
+        reset(title, description);
+        button("Volver a Accesibilidad", false, this::showAccessibility);
+    }
+    private void showSoundSettings() {
+        accessibilityPage("ACCESSIBILITY_SOUND", "Sonido y permisos",
+            "Elegí qué avisos querés escuchar y revisá los permisos del teléfono.");
+        text("Notificaciones", 22, true);
+        text("El sonido respeta el volumen, el modo silencio y No molestar del teléfono.", 18, false);
+        button("Sonido de las alertas para prevenir estafas", false, () -> {
+            FraudTipNotifications.createChannel(this);
+            startActivity(new android.content.Intent(android.provider.Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+                .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, getPackageName())
+                .putExtra(android.provider.Settings.EXTRA_CHANNEL_ID, "fraud_prevention"));
+        });
+        button("Permisos y notificaciones de la app", false, this::configureNotifications);
+        text("Lectura en voz alta", 22, true);
+        text("Escuchá los recordatorios de medicamentos y turnos y probá la voz del teléfono.", 18, false);
+        button("Configurar lectura en voz alta", false, this::configureVoice);
+    }
+    private void showFraudSettings() {
+        accessibilityPage("ACCESSIBILITY_FRAUD", "Prevenir estafas",
+            "Elegí cada cuánto recibir consejos y en qué horario descansar. También llegan con la app cerrada.");
+        text("Frecuencia de los consejos", 22, true);
+        int savedInterval = FraudTipSettings.intervalMinutes(this);
+        boolean useHours = savedInterval % 60 == 0;
+        TextInputLayout intervalBox = new TextInputLayout(this);
+        intervalBox.setHint("Recibir un consejo cada");
+        intervalBox.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
+        TextInputEditText interval = new TextInputEditText(intervalBox.getContext());
+        interval.setInputType(InputType.TYPE_CLASS_NUMBER);
+        interval.setTextSize(18); interval.setMinHeight(dp(64));
+        interval.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(5)});
+        interval.setText(String.valueOf(useHours ? savedInterval / 60 : savedInterval));
+        intervalBox.addView(interval);
+        content.addView(intervalBox, new LinearLayout.LayoutParams(-1, -2));
+        android.widget.RadioGroup intervalUnit = accessibilityChoices(new String[]{"Minutos", "Horas"}, useHours ? 1 : 0);
+        text("Horario de descanso", 22, true);
+        text("Durante este horario no llegan consejos. Si un aviso queda pendiente, se pasa al final del descanso, sin acumular mensajes.", 18, false);
+        int[] quietHours = {FraudTipSettings.quietStart(this), FraudTipSettings.quietEnd(this)};
+        MaterialButton sleepStart = button("Descansar desde las " + formatMinutes(quietHours[0]), false, () -> {});
+        MaterialButton sleepEnd = button("Volver a recibir desde las " + formatMinutes(quietHours[1]), false, () -> {});
+        sleepStart.setOnClickListener(v -> new android.app.TimePickerDialog(this, (picker, hour, minute) -> {
+            quietHours[0] = hour * 60 + minute;
+            sleepStart.setText("Descansar desde las " + formatMinutes(quietHours[0]));
+        }, quietHours[0] / 60, quietHours[0] % 60, true).show());
+        sleepEnd.setOnClickListener(v -> new android.app.TimePickerDialog(this, (picker, hour, minute) -> {
+            quietHours[1] = hour * 60 + minute;
+            sleepEnd.setText("Volver a recibir desde las " + formatMinutes(quietHours[1]));
+        }, quietHours[1] / 60, quietHours[1] % 60, true).show());
+        TextView alertError = text("", 16, false);
+        alertError.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+        text("Al cambiar estos avisos y guardar, el nuevo intervalo empieza en ese momento. Por defecto: cada 8 horas, con descanso de 22:00 a 08:00.", 16, false);
+        java.util.function.BooleanSupplier saveAlerts = () -> {
+            intervalBox.setError(null); alertError.setText("");
+            int amount;
+            try { amount = Integer.parseInt(interval.getText().toString().trim()); }
+            catch (NumberFormatException e) { amount = 0; }
+            int minutes = selectedAccessibilityChoice(intervalUnit) == 1 ? amount * 60 : amount;
+            if (minutes < 1 || minutes > 10080) {
+                intervalBox.setError("Ingresá entre 1 y 10080 minutos, o entre 1 y 168 horas.");
+                interval.requestFocus();
+                intervalBox.requestRectangleOnScreen(new android.graphics.Rect(0, 0, intervalBox.getWidth(), intervalBox.getHeight()), false);
+                return false;
+            }
+            if (quietHours[0] == quietHours[1]) {
+                alertError.setText("El inicio y el final del descanso deben ser diferentes.");
+                alertError.requestRectangleOnScreen(new android.graphics.Rect(0, 0, alertError.getWidth(), alertError.getHeight()), false);
+                return false;
+            }
+            boolean changed = minutes != FraudTipSettings.intervalMinutes(this)
+                || quietHours[0] != FraudTipSettings.quietStart(this) || quietHours[1] != FraudTipSettings.quietEnd(this);
+            accessibilityPreferences().edit().putInt("fraudIntervalMinutes", minutes)
+                .putInt("fraudQuietStart", quietHours[0]).putInt("fraudQuietEnd", quietHours[1]).apply();
+            if (changed) FraudTipNotifications.settingsChanged(this);
+            return true;
+        };
+        button("Guardar configuración de alertas", true, () -> {
+            if (saveAlerts.getAsBoolean())
+                android.widget.Toast.makeText(this, "Configuración de alertas guardada", android.widget.Toast.LENGTH_SHORT).show();
+        });
+        button("Restablecer frecuencia y descanso", false, () -> {
+            interval.setText("8"); intervalUnit.check(intervalUnit.getChildAt(1).getId());
+            quietHours[0] = 22 * 60; quietHours[1] = 8 * 60;
+            sleepStart.setText("Descansar desde las 22:00"); sleepEnd.setText("Volver a recibir desde las 08:00");
+            intervalBox.setError(null); alertError.setText("");
+        });
+        text("Tocá Guardar configuración de alertas para aplicar los cambios.", 16, false);
+    }
+    private void showAppearanceSettings() {
+        accessibilityPage("ACCESSIBILITY_APPEARANCE", "Apariencia",
+            "Ajustá la letra y los colores. Podés ver una muestra antes de guardar.");
+        text("Tamaño de letra", 22, true);
+        android.widget.RadioGroup sizes = accessibilityChoices(new String[]{"Normal (respeta el teléfono)", "Grande", "Muy grande"},
+            accessibilityPreferences().getInt("textSize", 0));
+        text("Tema", 22, true);
+        android.widget.RadioGroup themes = accessibilityChoices(new String[]{"Usar tema del teléfono", "Claro", "Oscuro"},
+            accessibilityPreferences().getInt("theme", 0));
+        com.google.android.material.checkbox.MaterialCheckBox contrast = new com.google.android.material.checkbox.MaterialCheckBox(this);
+        contrast.setText("Alto contraste"); contrast.setTextSize(18); contrast.setMinHeight(dp(64));
+        contrast.setTextColor(foregroundColor());
+        contrast.setChecked(accessibilityPreferences().getBoolean("contrast", false));
+        content.addView(contrast);
+        text("Los botones grandes con texto están disponibles en toda la app.", 18, false);
+        text("Vista previa", 22, true);
+        LinearLayout preview = new LinearLayout(this);
+        preview.setOrientation(LinearLayout.VERTICAL);
+        preview.setPadding(dp(16), dp(16), dp(16), dp(16));
+        content.addView(preview, new LinearLayout.LayoutParams(-1, -2));
+        TextView sample = text("Tu próximo turno es mañana a las 10:00.", 18, false, preview);
+        MaterialButton sampleButton = button("Botón de ejemplo", true, () -> {}, preview);
+        sampleButton.setFocusable(false); sampleButton.setClickable(false);
+        Runnable updatePreview = () -> {
+            int selectedTheme = selectedAccessibilityChoice(themes);
+            boolean dark = selectedTheme == 2 || (selectedTheme == 0 &&
+                (android.content.res.Resources.getSystem().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                    == android.content.res.Configuration.UI_MODE_NIGHT_YES);
+            boolean high = contrast.isChecked();
+            int foreground = android.graphics.Color.parseColor(dark ? "#FFFFFF" : high ? "#000000" : "#3D3650");
+            int background = android.graphics.Color.parseColor(dark ? high ? "#000000" : "#211C29" : "#FFFFFF");
+            int primary = android.graphics.Color.parseColor(dark ? high ? "#FFFF00" : "#D0BCFF" : high ? "#000000" : "#7654B8");
+            preview.setBackgroundColor(background); sample.setTextColor(foreground);
+            sampleButton.setBackgroundTintList(android.content.res.ColorStateList.valueOf(primary));
+            sampleButton.setTextColor(dark ? android.graphics.Color.BLACK : android.graphics.Color.WHITE);
+            int size = selectedAccessibilityChoice(sizes);
+            int currentSize = accessibilityPreferences().getInt("textSize", 0);
+            float multiplier = size == 2 ? 1.5f : size == 1 ? 1.25f : 1f;
+            float currentMultiplier = currentSize == 2 ? 1.5f : currentSize == 1 ? 1.25f : 1f;
+            sample.setTextSize(18 * multiplier / currentMultiplier);
+            sampleButton.setTextSize(18 * multiplier / currentMultiplier);
+        };
+        sizes.setOnCheckedChangeListener((group, id) -> updatePreview.run());
+        themes.setOnCheckedChangeListener((group, id) -> updatePreview.run());
+        contrast.setOnCheckedChangeListener((view, checked) -> updatePreview.run());
+        updatePreview.run();
+        button("Guardar preferencias", true, () -> {
+            accessibilityPreferences().edit().putInt("textSize", selectedAccessibilityChoice(sizes))
+                .putInt("theme", selectedAccessibilityChoice(themes)).putBoolean("contrast", contrast.isChecked()).apply();
+            android.widget.Toast.makeText(this, "Preferencias guardadas", android.widget.Toast.LENGTH_SHORT).show();
+            recreate();
+        });
+        button("Restablecer opciones", false, () -> {
+            sizes.check(sizes.getChildAt(0).getId()); themes.check(themes.getChildAt(0).getId()); contrast.setChecked(false); updatePreview.run();
+        });
+        text("Restablecer selecciona los valores iniciales. Tocá Guardar preferencias para aplicarlos.", 16, false);
+    }
+    private int selectedAccessibilityChoice(android.widget.RadioGroup group) {
+        return (Integer) group.findViewById(group.getCheckedRadioButtonId()).getTag();
+    }
+    private String formatMinutes(int minutes) {
+        return String.format(java.util.Locale.getDefault(), "%02d:%02d", minutes / 60, minutes % 60);
+    }
+    private android.widget.RadioGroup accessibilityChoices(String[] labels, int selected) {
+        android.widget.RadioGroup group = new android.widget.RadioGroup(this);
+        for (int i = 0; i < labels.length; i++) {
+            com.google.android.material.radiobutton.MaterialRadioButton option = new com.google.android.material.radiobutton.MaterialRadioButton(this);
+            option.setId(View.generateViewId()); option.setTag(i); option.setText(labels[i]); option.setTextSize(18);
+            option.setTextColor(foregroundColor());
+            option.setMinHeight(dp(64)); option.setPadding(dp(8), dp(12), dp(8), dp(12));
+            group.addView(option, new android.widget.RadioGroup.LayoutParams(-1, -2));
+        }
+        group.check(group.getChildAt(selected).getId());
+        content.addView(group, new LinearLayout.LayoutParams(-1, -2));
+        return group;
+    }
     private void configureVoice() {
         LinearLayout options = new LinearLayout(this);
         options.setOrientation(LinearLayout.VERTICAL);
@@ -776,14 +1068,27 @@ public class MainActivity extends AppCompatActivity {
     }
     @Override protected void onResume() {
         super.onResume();
+        resumed = true;
+        FraudTipNotifications.restore(this);
+        openFraudNotification();
+        scheduleFraudTip();
         if (currentUser != null) {
             ReminderNotifications.restore(this);
             ReminderSyncService.schedule(this, false);
         }
     }
+    @Override protected void onPause() {
+        resumed = false;
+        careHandler.removeCallbacks(showScheduledFraudTip);
+        super.onPause();
+    }
     @Override protected void onStop() {
         careHandler.removeCallbacks(refreshCare);
         super.onStop();
     }
-    @Override protected void onDestroy() { careHandler.removeCallbacks(refreshCare); executor.shutdownNow(); super.onDestroy(); }
+    @Override protected void onDestroy() {
+        careHandler.removeCallbacks(showScheduledFraudTip);
+        if (fraudTipDialog != null) fraudTipDialog.dismiss();
+        careHandler.removeCallbacks(refreshCare); executor.shutdownNow(); super.onDestroy();
+    }
 }

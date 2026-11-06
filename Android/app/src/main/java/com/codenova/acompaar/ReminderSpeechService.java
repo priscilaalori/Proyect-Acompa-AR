@@ -20,7 +20,6 @@ import android.util.Log;
 import android.widget.Toast;
 import java.util.ArrayDeque;
 
-/** Short-lived playback service: queued speech, explicit stop, no microphone. */
 public final class ReminderSpeechService extends Service {
     private static final String CHANNEL = "care_voice";
     private static final int NOTIFICATION_ID = 8201;
@@ -52,7 +51,6 @@ public final class ReminderSpeechService extends Service {
             context.startForegroundService(new Intent(context, ReminderSpeechService.class).putExtra("text", text));
             return true;
         } catch (RuntimeException error) {
-            // Background-start restrictions must never prevent the normal notification.
             Log.w("ReminderSpeech", "Speech unavailable; reminder remains visible", error);
             return false;
         }
@@ -88,7 +86,6 @@ public final class ReminderSpeechService extends Service {
             fail("La lectura está silenciada. Revisá el sonido y el volumen de alarmas del teléfono.");
             return START_NOT_STICKY;
         }
-        // Bound both queue and utterance length. Each item is spoken in order, never flushed by another reminder.
         if (queue.size() < 20) queue.add(text.substring(0, Math.min(text.length(), TextToSpeech.getMaxSpeechInputLength() - 1)));
         if (speech == null) {
             handler.postDelayed(timeout, 20000);
@@ -100,7 +97,6 @@ public final class ReminderSpeechService extends Service {
     private void initialized(int status) {
         if (closing) return;
         if (status != TextToSpeech.SUCCESS) { fail("No se encontró una voz disponible en el teléfono."); return; }
-        // Prefer an installed Spanish voice so medication details need not leave the device.
         Voice selected = null;
         if (speech.getVoices() != null) for (Voice voice : speech.getVoices()) {
             if (!"es".equals(voice.getLocale().getLanguage()) || voice.isNetworkConnectionRequired()) continue;

@@ -14,7 +14,7 @@ import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 
-/** Sesión cifrada con una clave del dispositivo, excluida de las copias de seguridad. */
+// Guardo la sesión protegida en el teléfono para no pedir la contraseña cada vez.
 final class SessionStorage {
     private static final String KEY_ALIAS = "acompanar.session";
     private final AtomicFile file;
