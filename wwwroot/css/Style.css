@@ -93,7 +93,7 @@ body {
 }
 
 .logo p {
-    color: #8b8499;
+    color: #655c74;
     font-size: 14px;
 }
 
@@ -111,7 +111,7 @@ body {
     }
 
     .registro-header p {
-        color: #8b8499;
+        color: #655c74;
         font-size: 15px;
     }
 
@@ -222,7 +222,7 @@ body {
 .login-link {
     text-align: center;
     margin-top: 22px;
-    color: #8b8499;
+    color: #655c74;
     font-size: 14px;
 }
 
@@ -728,12 +728,10 @@ body {
     color: #218739;
     font-weight: 700;
 }
-<<<<<<< HEAD
 
-=======
->>>>>>> origin/feature/pri-panel-mayor
 /* =====================================
    PANEL DEL ACOMPAÑANTE
+===================================== */
 
 .panel-acompanante .panel-header {
     align-items: center;
@@ -1395,23 +1393,27 @@ body {
         bottom: 0;
         left: 0;
         z-index: 21;
-        width: 280px;
+        width: min(280px, 90vw);
         overflow-y: auto;
         padding: 20px 14px;
         border-radius: 0 20px 20px 0;
         transform: translateX(-100%);
         transition: transform .2s;
+        visibility: hidden;
+        pointer-events: none;
     }
 
-    .panel-acompanante .panel-menu.abierto {
-        transform: none;
-    }
+        .panel-acompanante .panel-menu.abierto {
+            transform: none;
+            visibility: visible;
+            pointer-events: auto;
+        }
 
     .panel-acompanante .panel-cerrar-menu {
         display: grid;
         place-items: center;
-        width: 40px;
-        height: 40px;
+        width: 44px;
+        height: 44px;
         flex: none;
         margin-left: auto;
         border: 1px solid #d9cdf2;
@@ -1463,8 +1465,6 @@ body {
         grid-column: 1 / -1;
     }
 }
-<<<<<<< HEAD
-
 
 /* Búsqueda de usuarios en el panel de Administración */
 
@@ -1843,8 +1843,8 @@ body {
 }
 
 .boton-accesibilidad {
-    min-width: 42px;
-    min-height: 42px;
+    min-width: 44px;
+    min-height: 44px;
     padding: 8px 12px;
     border: 1px solid #9675d0;
     border-radius: 9px;
@@ -2048,6 +2048,23 @@ body:has(.panel-mayor.alto-contraste) {
     .control-texto {
         flex-wrap: wrap;
     }
+}
 
-=======
->>>>>>> origin/feature/pri-panel-mayor
+/* Accesibilidad para el foco visible en el panel del acompañante */
+.panel-acompanante :is(button, a, input, select, textarea):focus-visible {
+    outline: 3px solid #54318f;
+    outline-offset: 3px;
+}
+
+/* Foco visible del boton Cerrar sesion */
+#cerrarSesion:focus-visible {
+    outline: 3px solid #54318f;
+    outline-offset: 3px;
+}
+
+/* Reducir movimiento cuando el usuario lo pide */
+@media (prefers-reduced-motion: reduce) {
+    .panel-acompanante .panel-menu {
+        transition: none;
+    }
+}
