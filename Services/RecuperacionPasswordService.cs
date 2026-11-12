@@ -10,15 +10,21 @@ namespace AcompañAR.Services
         private readonly RecuperacionPasswordRepository _repository;
         private readonly EmailService _emailService;
         private readonly UsuarioRepository _usuarioRepository;
+        private readonly string _frontendBaseUrl;
 
         public RecuperacionPasswordService(
     RecuperacionPasswordRepository repository,
     EmailService emailService,
-    UsuarioRepository usuarioRepository)
+    UsuarioRepository usuarioRepository,
+    IConfiguration configuration)
         {
             _repository = repository;
             _emailService = emailService;
             _usuarioRepository = usuarioRepository;
+
+            _frontendBaseUrl = configuration["AppUrls:FrontendBaseUrl"]
+                ?? throw new InvalidOperationException(
+                    "No está configurada la URL del frontend.");
         }
 
         public async Task SolicitarRecuperacionAsync(string email)
@@ -50,9 +56,9 @@ namespace AcompañAR.Services
                 tokenHash,
                 fechaExpiracion);
 
-          
+
             string enlace =
-                $"https://localhost:7005/nueva-password.html?token={Uri.EscapeDataString(token)}";
+    $"{_frontendBaseUrl.TrimEnd('/')}/nueva-password.html?token={Uri.EscapeDataString(token)}";
 
             string mensaje =
                 "Recibimos una solicitud para restablecer tu contraseña de AcompañAR.\n\n" +
