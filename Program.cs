@@ -49,6 +49,8 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+Console.WriteLine($"URL DE APLICACIÓN: {app.Urls.FirstOrDefault()}");
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -1768,3 +1770,4 @@ record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
 {
     public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
 }
+
