@@ -7,7 +7,20 @@ const fecha = valor => new Intl.DateTimeFormat("es-AR").format(new Date(`${valor
 const diaLocal = (dias = 0) => new Date(Date.now() + dias * 24 * 60 * 60 * 1000).toLocaleDateString("en-CA");
 let seccionActual = "recordatorios";
 
+const menu = document.getElementById("menu");
+const abrirMenuBoton = document.getElementById("abrirMenu");
+const cerrarMenuBoton = document.getElementById("cerrarMenu");
+const fondoMenu = document.getElementById("fondoMenu");
+
+const encabezadoPanel = document.querySelector(".panel-acompanante .panel-header");
+const contenidoPanel = document.querySelector(".panel-acompanante .panel-contenido");
+
+const pantallaMovil = window.matchMedia("(max-width: 860px)");
+
 function mostrarSeccion(nombre) {
+
+    const menuEstabaAbierto = menu.classList.contains("abierto");
+
     seccionActual = nombre;
     for (const seccion of document.querySelectorAll(".panel-seccion[data-seccion]")) {
         seccion.hidden = seccion.dataset.seccion !== nombre;
@@ -20,27 +33,73 @@ function mostrarSeccion(nombre) {
         }
     }
     cerrarMenu();
+
+    if (menuEstabaAbierto) {
+        const titulo = document.querySelector(
+            `.panel-seccion[data-seccion="${nombre}"] h2`
+        );
+
+        if (titulo) {
+            titulo.tabIndex = -1;
+            titulo.focus();
+        }
+    }
+
     mostrarAlertas();
 }
 
 function abrirMenu() {
-    document.getElementById("menu").classList.add("abierto");
-    document.getElementById("fondoMenu").hidden = false;
-    document.getElementById("abrirMenu").setAttribute("aria-expanded", "true");
+    if (!pantallaMovil.matches) return;
+
+    menu.inert = false;
+    menu.classList.add("abierto");
+
+    fondoMenu.hidden = false;
+    abrirMenuBoton.setAttribute("aria-expanded", "true");
+
+    cerrarMenuBoton.focus();
+
+    encabezadoPanel.inert = true;
+    contenidoPanel.inert = true;
 }
 
-function cerrarMenu() {
-    document.getElementById("menu").classList.remove("abierto");
-    document.getElementById("fondoMenu").hidden = true;
-    document.getElementById("abrirMenu").setAttribute("aria-expanded", "false");
+function cerrarMenu(devolverFoco = false) {
+    const estabaAbierto = menu.classList.contains("abierto");
+
+    menu.classList.remove("abierto");
+    fondoMenu.hidden = true;
+
+    abrirMenuBoton.setAttribute("aria-expanded", "false");
+
+    encabezadoPanel.inert = false;
+    contenidoPanel.inert = false;
+
+    menu.inert = pantallaMovil.matches;
+
+    if (devolverFoco && estabaAbierto && pantallaMovil.matches) {
+        abrirMenuBoton.focus();
+    }
 }
 
-document.getElementById("abrirMenu").addEventListener("click", abrirMenu);
-document.getElementById("cerrarMenu").addEventListener("click", cerrarMenu);
-document.getElementById("fondoMenu").addEventListener("click", cerrarMenu);
+abrirMenuBoton.addEventListener("click", abrirMenu);
+
+cerrarMenuBoton.addEventListener("click", () => cerrarMenu(true));
+
+fondoMenu.addEventListener("click", () => cerrarMenu(true));
+
+document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && menu.classList.contains("abierto")) {
+        event.preventDefault();
+        cerrarMenu(true);
+    }
+});
+
+pantallaMovil.addEventListener("change", () => cerrarMenu());
 for (const boton of document.querySelectorAll(".panel-nav")) {
     boton.addEventListener("click", () => mostrarSeccion(boton.dataset.seccion));
 }
+
+cerrarMenu();
 
 function mostrarLista(id, elementos, vacio, describir) {
     const lista = document.getElementById(id);
