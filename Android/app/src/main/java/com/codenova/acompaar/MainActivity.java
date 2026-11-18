@@ -414,11 +414,13 @@ public class MainActivity extends AppCompatActivity {
     private void updateMenuBadges() {
         if (carePanel == null || !"HOME".equals(careScreen)) return;
         Map<String, Integer> counts = new LinkedHashMap<>();
+        LocalDate today = LocalDate.now();
         org.json.JSONArray reminders = carePanel.optJSONArray("recordatorios");
         if (reminders != null) for (int i = 0; i < reminders.length(); i++) {
             JSONObject item = reminders.optJSONObject(i);
             if (isPendingReminder(item)) {
                 String type = item.optString("tipo");
+                if ("MEDICAMENTO".equals(type) && !CareVisibility.isToday(item.optString("fecha"), today)) continue;
                 counts.put(type, counts.getOrDefault(type, 0) + 1);
             }
         }
@@ -461,7 +463,7 @@ public class MainActivity extends AppCompatActivity {
                 : contacts ? "Mis contactos de confianza" : medicine ? "Mis medicamentos" : "Mis turnos médicos",
             invitations ? "Vos elegís quién puede acompañarte."
                 : contacts ? "Las personas con las que podés contar."
-                : medicine ? "Tus tomas de hoy y mañana." : "Tus consultas y estudios de hoy y mañana.");
+                : medicine ? "Tus tomas de hoy." : "Tus consultas y estudios de hoy y mañana.");
         MaterialButton back = button("Volver al inicio", false, () -> showWelcome(currentUser));
         back.setIconResource(R.drawable.ic_arrow_back);
         content.removeView(back);
@@ -531,8 +533,10 @@ public class MainActivity extends AppCompatActivity {
         int visible = 0;
         if (reminders != null) for (int i = 0; i < reminders.length(); i++) {
             JSONObject item = reminders.optJSONObject(i);
-            if (item == null || !careScreen.equals(item.optString("tipo"))
-                || (!CareVisibility.isCurrent(item.optString("fecha"), today) && !isPendingReminder(item))) continue;
+            if (item == null || !careScreen.equals(item.optString("tipo"))) continue;
+            String date = item.optString("fecha");
+            if (medicinesScreen ? !CareVisibility.isToday(date, today)
+                : !CareVisibility.isCurrent(date, today) && !isPendingReminder(item)) continue;
             visible++;
             LinearLayout card = careCard();
             boolean medicine = "MEDICAMENTO".equals(item.optString("tipo"));
@@ -555,7 +559,7 @@ public class MainActivity extends AppCompatActivity {
                 text(medicine ? (done ? "✓ Lo tomé" : "No lo tomé")
                     : (done ? "✓ Asistí" : "No asistí"), 20, true, card);
             } else if (ReminderNotifications.isPending(this, item.optInt("idRecordatorio"))) {
-                text("Respuesta pendiente de envío. Se registrará cuando haya conexión y una sesión vigente.", 18, false, card);
+                text("Tu respuesta está guardada en este teléfono y queda pendiente de confirmación del servidor.", 18, false, card);
             } else if (item.optInt("disponible") == 1) {
                 button(medicine ? "✓ Lo tomé" : "✓ Asistí", true,
                     () -> confirmCare(item, medicine, true), card);
@@ -563,10 +567,10 @@ public class MainActivity extends AppCompatActivity {
                     () -> confirmCare(item, medicine, false), card);
             } else text("Podrás responder a partir del horario indicado.", 18, false, card);
         }
-        if (visible == 0) text(medicinesScreen ? "No tenés tomas para hoy ni mañana."
+        if (visible == 0) text(medicinesScreen ? "No tenés tomas para hoy."
             : "No tenés asistencias para registrar hoy ni mañana.", 18, false, careContent);
         if (medicinesScreen) {
-        text("Mi tratamiento de hoy y mañana", 24, true, careContent);
+        text("Mi tratamiento de hoy", 24, true, careContent);
         org.json.JSONArray medicines = panel.optJSONArray("medicamentos");
         int treatments = 0;
         if (medicines != null) for (int i = 0; i < medicines.length(); i++) {

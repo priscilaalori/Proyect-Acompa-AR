@@ -6,6 +6,10 @@ import java.time.format.DateTimeParseException;
 final class CareVisibility {
     private CareVisibility() { }
 
+    static boolean isToday(String date, LocalDate today) {
+        return today.toString().equals(date);
+    }
+
     static boolean isCurrent(String date, LocalDate today) {
         try {
             LocalDate scheduled = LocalDate.parse(date);
@@ -16,7 +20,7 @@ final class CareVisibility {
 
     static boolean isTreatmentCurrent(String start, String end, LocalDate today) {
         try {
-            return !LocalDate.parse(start).isAfter(today.plusDays(1))
+            return !LocalDate.parse(start).isAfter(today)
                 && (end == null || !LocalDate.parse(end).isBefore(today));
         } catch (DateTimeParseException | NullPointerException e) { return false; }
     }

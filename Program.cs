@@ -1710,12 +1710,14 @@ app.MapGet("/api/mayor/panel-web", async (
                    END,
                    DATE_FORMAT(r.fecha_hora, '%Y-%m-%d'),
                    TIME_FORMAT(r.fecha_hora, '%H:%i'),
-                   r.estado
+                   COALESCE(c.estado, r.estado)
             FROM recordatorio r
             LEFT JOIN medicamento m
                 ON m.id_medicamento = r.id_medicamento
             LEFT JOIN turno_medico t
                 ON t.id_turno = r.id_turno
+            LEFT JOIN cumplimiento c
+                ON c.id_recordatorio = r.id_recordatorio
             WHERE (m.id_mayor = @idMayor OR t.id_mayor = @idMayor)
               AND r.fecha_hora >= CURDATE()
               AND r.fecha_hora < DATE_ADD(CURDATE(), INTERVAL 2 DAY)

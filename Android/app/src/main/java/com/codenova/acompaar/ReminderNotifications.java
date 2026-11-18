@@ -16,6 +16,7 @@ import org.json.JSONObject;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Iterator;
 
@@ -79,6 +80,11 @@ final class ReminderNotifications {
             .setStyle(new Notification.BigTextStyle().bigText(text)).setContentIntent(open(c, id))
             .setVisibility(Notification.VISIBILITY_PRIVATE).setOnlyAlertOnce(true).setAutoCancel(!answers);
         if (answers) {
+            if (medicine) {
+                long now = System.currentTimeMillis();
+                ZoneId zone = ZoneId.systemDefault();
+                builder.setTimeoutAfter(ReminderTiming.nextDayStart(now, zone) - now);
+            }
             builder.addAction(new Notification.Action.Builder(null, medicine ? "Lo tomé" : "Asistí",
                 action(c, id, "care.answer", true)).build());
             builder.addAction(new Notification.Action.Builder(null, medicine ? "No lo tomé" : "No asistí",
@@ -132,8 +138,7 @@ final class ReminderNotifications {
         Iterator<String> keys = items.keys();
         while (keys.hasNext()) cancel(c, Integer.parseInt(keys.next()));
         file(c).delete();
-        c.getSystemService(android.app.job.JobScheduler.class).cancel(8101);
-        c.getSystemService(android.app.job.JobScheduler.class).cancel(8102);
+        ReminderSyncService.cancel(c);
         manager(c).cancelAll();
     }
 
@@ -165,9 +170,21 @@ final class ReminderNotifications {
     }
 
     static synchronized void restore(Context c) {
-        JSONObject items = object(read(c), "items");
+        JSONObject data = read(c);
+        JSONObject items = object(data, "items");
+        JSONObject outbox = object(data, "outbox");
+        LocalDate today = LocalDate.now();
         Iterator<String> keys = items.keys();
-        while (keys.hasNext()) schedule(c, object(items, keys.next()));
+        while (keys.hasNext()) {
+            String key = keys.next();
+            JSONObject item = object(items, key);
+            if ("MEDICAMENTO".equals(item.optString("tipo"))
+                && item.optString("fecha").compareTo(today.toString()) < 0) {
+                if (!outbox.has(key)) cancel(c, item.optInt("idRecordatorio"));
+                continue;
+            }
+            schedule(c, item);
+        }
     }
 
     static synchronized void deliver(Context c, int id) {
@@ -204,6 +221,11 @@ final class ReminderNotifications {
         JSONObject item = object(object(data, "items"), key);
         JSONObject outbox = object(data, "outbox");
         if (!item.has("idRecordatorio") || outbox.has(key) || time(item) > System.currentTimeMillis()) return;
+        if ("MEDICAMENTO".equals(item.optString("tipo"))
+            && !CareVisibility.isToday(item.optString("fecha"), LocalDate.now())) {
+            cancel(c, id);
+            return;
+        }
         ReminderSpeechService.stop(c);
         put(outbox, key, done ? "CUMPLIDO" : "NO_CUMPLIDO"); put(data, "outbox", outbox);
         put(data, "activityAt", System.currentTimeMillis());
@@ -211,7 +233,8 @@ final class ReminderNotifications {
             notify(c, id, "No pudimos conservar la respuesta", "Abrí la app para volver a registrar tu respuesta.", false, false);
             return;
         }
-        notify(c, id, "Respuesta pendiente de envío", "Se guardará cuando haya conexión y una sesión vigente.", false, false);
+        notify(c, id, "Respuesta pendiente de envío", "Tu respuesta quedó guardada en este teléfono. La app la enviará al servidor.", false, false);
+        ReminderSyncService.scheduleAnswer(c);
     }
 
     static synchronized void completed(Context c, int id) {
@@ -280,8 +303,10 @@ final class ReminderNotifications {
                                 e.status == 409 ? "Ya se había registrado una respuesta. Abrí la app para consultar el resultado." : e.getMessage(),
                                 false, false);
                         }
-                    } else return true;
-                } catch (Exception e) { return true; }
+                    } else {
+                        return retryAnswer(c, snapshot, key);
+                    }
+                } catch (Exception e) { return retryAnswer(c, snapshot, key); }
             }
             try {
                 JSONObject panel = api.get("/api/mayor/panel");
@@ -291,5 +316,12 @@ final class ReminderNotifications {
             catch (AuthClient.ApiException e) { return e.status != 401 && e.status != 403; }
             catch (Exception e) { return true; }
         }
+    }
+
+    private static synchronized boolean retryAnswer(Context c, JSONObject snapshot, String key) {
+        if (!isCurrent(c, snapshot) || !object(read(c), "outbox").has(key)) return false;
+        notify(c, Integer.parseInt(key), "Respuesta pendiente de envío",
+            "No pudimos confirmar el envío con el servidor. La app volverá a intentarlo.", false, false);
+        return true;
     }
 }
