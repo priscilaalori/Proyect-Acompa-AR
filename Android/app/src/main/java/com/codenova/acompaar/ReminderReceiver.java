@@ -12,6 +12,7 @@ public final class ReminderReceiver extends BroadcastReceiver {
         if ("care.answer".equals(action)) {
             ReminderNotifications.answer(context, intent.getIntExtra("id", 0),
                 intent.getBooleanExtra("done", false));
+            return;
         } else if ("care.speak".equals(action)) {
             ReminderNotifications.readAloud(context, intent.getIntExtra("id", 0));
             return;

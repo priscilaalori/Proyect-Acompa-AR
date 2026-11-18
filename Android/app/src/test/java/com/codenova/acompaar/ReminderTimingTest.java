@@ -26,6 +26,12 @@ public class ReminderTimingTest {
         assertTrue(ReminderTiming.dueToday("2026-10-30", "23:58", beforeMidnight, argentina));
         assertFalse(ReminderTiming.dueToday("2026-10-30", "23:58", beforeMidnight + 60000, argentina));
     }
+    @Test public void medicationAlertsExpireAtTheNextLocalMidnight() {
+        long midnight = Instant.parse("2026-10-31T03:00:00Z").toEpochMilli();
+        assertEquals(midnight, ReminderTiming.nextDayStart(midnight - 1, argentina));
+        assertEquals(Instant.parse("2026-11-01T03:00:00Z").toEpochMilli(),
+            ReminderTiming.nextDayStart(midnight, argentina));
+    }
     @Test public void rejectsMalformedSchedule() {
         assertEquals(-1, ReminderTiming.scheduledMillis("2026-02-30", "09:00", argentina));
         assertEquals(-1, ReminderTiming.scheduledMillis("2026-10-30", "25:00", argentina));

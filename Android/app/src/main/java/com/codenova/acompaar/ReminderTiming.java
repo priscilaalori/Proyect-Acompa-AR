@@ -1,5 +1,6 @@
 package com.codenova.acompaar;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -18,6 +19,11 @@ final class ReminderTiming {
     static boolean dueToday(String date, String time, long now, ZoneId zone) {
         long scheduled = scheduledMillis(date, time, zone);
         return scheduled >= 0 && scheduled <= now
-            && java.time.Instant.ofEpochMilli(now).atZone(zone).toLocalDate().toString().equals(date);
+            && CareVisibility.isToday(date, Instant.ofEpochMilli(now).atZone(zone).toLocalDate());
+    }
+
+    static long nextDayStart(long now, ZoneId zone) {
+        return Instant.ofEpochMilli(now).atZone(zone).toLocalDate().plusDays(1)
+            .atStartOfDay(zone).toInstant().toEpochMilli();
     }
 }
